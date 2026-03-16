@@ -19,6 +19,7 @@ Uses your webcam to detect slouching in real-time and overlays a progressive red
 - **Settings UI** — warning mode, intensity, sensitivity, detection speed
 - **Analytics dashboard** — daily score, 7-day chart, monitoring time, slouch stats
 - **System tray** with posture status and quick access menu
+- **Dark/light theme** support (follows GNOME color scheme)
 - **Auto-pause** on screen lock
 - **Calibration** on first launch
 - **TOML config** in `~/.config/dorso/`
@@ -60,7 +61,7 @@ When you slouch, a red glow appears on the edges of your screen. Sit straight an
 
 ### System tray menu
 
-The tray icon shows your current posture status. The menu provides:
+The tray icon shows your current posture status (green/red/grey). Click the icon to access:
 
 - **Status** — current posture state
 - **Activer/Désactiver** — toggle monitoring
@@ -108,6 +109,32 @@ Camera (OpenCV) → Detector (MediaPipe) → PostureEngine (pure logic) → Over
 ```
 
 The posture engine is a pure function with no side effects — takes state + reading, returns new state + effects. Fully testable.
+
+## Known limitations & help wanted
+
+### Overlay z-order on GNOME Wayland
+
+On GNOME Wayland, the overlay window cannot stay above all other windows without using `fullscreen()` (which hides the GNOME top bar). Currently the overlay is maximized and click-through, but windows clicked after the overlay appeared will cover it. This is a Mutter limitation — GNOME doesn't support the [wlr-layer-shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1) protocol that Sway/Hyprland use for proper overlays.
+
+**On Sway/Hyprland**, the overlay works perfectly via Layer Shell (always on top, click-through, per-monitor).
+
+If you know a way to keep a transparent click-through window always on top on GNOME Wayland without hiding the top bar, please open an issue!
+
+### AirPods motion sensors
+
+The macOS version supports AirPods motion sensors for posture detection. On Linux, AirPods connect as standard Bluetooth audio devices (A2DP/HFP) via BlueZ, but the motion sensor data uses Apple's proprietary AAP protocol over BLE GATT and is not accessible.
+
+If you've done reverse-engineering work on the AAP protocol or know how to access AirPods motion data on Linux, contributions are very welcome!
+
+## Roadmap
+
+- [ ] Overlay color picker (choose glow color in settings)
+- [ ] Custom tray icon (SVG with posture silhouette, keeping green/red/grey status colors)
+- [ ] Multi-monitor overlay on GNOME (requires Mutter changes or GNOME Shell extension)
+- [ ] AirPods motion sensor support (requires AAP protocol reverse-engineering)
+- [ ] Notification integration (libnotify)
+- [ ] Global keyboard shortcut to toggle
+- [ ] Flatpak/Snap packaging
 
 ## Tests
 
