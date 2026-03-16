@@ -259,7 +259,8 @@ class TrayIcon:
         self, connection, sender, path, interface, method, params, invocation
     ) -> None:
         if method == "Activate":
-            self._on_toggle()
+            # ItemIsMenu=True means the host should show the menu on click
+            # If the host calls Activate anyway, just ignore it
             invocation.return_value(None)
         elif method == "ContextMenu":
             # Context menu is handled via DBusMenu
@@ -287,7 +288,7 @@ class TrayIcon:
         elif prop_name == "Menu":
             return GLib.Variant("o", DBUSMENU_PATH)
         elif prop_name == "ItemIsMenu":
-            return GLib.Variant("b", False)
+            return GLib.Variant("b", True)
         return None
 
     def _on_menu_method_call(
