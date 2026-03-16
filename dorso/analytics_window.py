@@ -12,15 +12,50 @@ from gi.repository import Gtk, Gdk, Pango
 
 from dorso.analytics import Analytics
 
-# Colors matching the dorso macOS style
+# Accent colors (always the same regardless of theme)
 TEAL = (0.24, 0.78, 0.73)
 ORANGE = (0.95, 0.65, 0.25)
 RED = (0.9, 0.3, 0.25)
-GRAY = (0.55, 0.58, 0.62)
-DARK = (0.18, 0.20, 0.25)
-LIGHT_BG = (0.96, 0.97, 0.98)
-WHITE = (1, 1, 1)
-CARD_SHADOW = (0, 0, 0, 0.06)
+
+
+def _get_theme_colors() -> dict:
+    """Read colors from the current GTK theme (supports dark/light)."""
+    display = Gdk.Display.get_default()
+    if not display:
+        # Fallback light theme
+        return {"bg": (0.96, 0.97, 0.98), "card": (1, 1, 1),
+                "fg": (0.18, 0.20, 0.25), "dim": (0.55, 0.58, 0.62)}
+
+    # Detect dark mode via the style manager or color scheme
+    settings = Gtk.Settings.get_for_display(display)
+    prefer_dark = settings.get_property("gtk-application-prefer-dark-theme")
+
+    # Also check GNOME color-scheme
+    if not prefer_dark:
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
+                capture_output=True, text=True, timeout=1,
+            )
+            prefer_dark = "dark" in result.stdout.lower()
+        except Exception:
+            pass
+
+    if prefer_dark:
+        return {
+            "bg": (0.15, 0.15, 0.17),
+            "card": (0.22, 0.22, 0.25),
+            "fg": (0.92, 0.92, 0.94),
+            "dim": (0.55, 0.55, 0.58),
+        }
+    else:
+        return {
+            "bg": (0.96, 0.97, 0.98),
+            "card": (1, 1, 1),
+            "fg": (0.18, 0.20, 0.25),
+            "dim": (0.55, 0.58, 0.62),
+        }
 
 
 def _fmt_duration(seconds: float) -> str:
@@ -54,21 +89,7 @@ class AnalyticsWindow:
         self._window.set_default_size(520, 520)
         self._window.set_resizable(False)
 
-        # Apply dark header style
-        css = Gtk.CssProvider()
-        css.load_from_string("""
-            .analytics-window {
-                background-color: #f5f6f8;
-            }
-            .analytics-header {
-                background-color: #ffffff;
-                border-bottom: 1px solid #e0e0e0;
-            }
-        """)
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
-        self._window.add_css_class("analytics-window")
+        # No custom CSS — colors are read from theme in _on_draw
 
         da = Gtk.DrawingArea()
         da.set_draw_func(self._on_draw)
@@ -82,24 +103,25 @@ class AnalyticsWindow:
     def _on_draw(self, area, cr, width, height) -> None:
         today = self._analytics.today
         week = self._analytics.last_n_days(7)
+        tc = _get_theme_colors()
 
         # Background
-        cr.set_source_rgb(*LIGHT_BG)
+        cr.set_source_rgb(*tc["bg"])
         cr.paint()
 
         # ---- Header area ----
         self._draw_rounded_rect(cr, 16, 16, width - 32, 100, 12)
-        cr.set_source_rgb(*WHITE)
+        cr.set_source_rgb(*tc["card"])
         cr.fill()
 
         # Title
-        cr.set_source_rgb(*DARK)
+        cr.set_source_rgb(*tc["fg"])
         cr.select_font_face("Sans", 0, 1)  # bold
         cr.set_font_size(20)
         cr.move_to(30, 48)
         cr.show_text("Analytiques Posture")
 
-        cr.set_source_rgb(*GRAY)
+        cr.set_source_rgb(*tc["dim"])
         cr.select_font_face("Sans", 0, 0)
         cr.set_font_size(12)
         cr.move_to(30, 68)
@@ -108,10 +130,10 @@ class AnalyticsWindow:
         # Today's score (circular gauge) — top right
         score = today.score
         cx, cy, radius = width - 70, 66, 32
-        self._draw_score_ring(cr, cx, cy, radius, score)
+        self._draw_score_ring(cr, cx, cy, radius, score, tc)
 
         # "Score du jour" label
-        cr.set_source_rgb(*GRAY)
+        cr.set_source_rgb(*tc["dim"])
         cr.set_font_size(9)
         tw = cr.text_extents("Score du jour").width
         cr.move_to(cx - tw / 2, cy - radius - 8)
@@ -131,7 +153,7 @@ class AnalyticsWindow:
         for i, (label, value, color) in enumerate(stats):
             x = 16 + i * (card_w + 6)
             self._draw_rounded_rect(cr, x, card_y, card_w, card_h, 10)
-            cr.set_source_rgb(*WHITE)
+            cr.set_source_rgb(*tc["card"])
             cr.fill()
 
             # Color accent bar
@@ -140,14 +162,14 @@ class AnalyticsWindow:
             cr.fill()
 
             # Label
-            cr.set_source_rgb(*GRAY)
+            cr.set_source_rgb(*tc["dim"])
             cr.select_font_face("Sans", 0, 0)
             cr.set_font_size(11)
             cr.move_to(x + 14, card_y + 24)
             cr.show_text(label)
 
             # Value
-            cr.set_source_rgb(*DARK)
+            cr.set_source_rgb(*tc["fg"])
             cr.select_font_face("Sans", 0, 1)
             cr.set_font_size(20)
             cr.move_to(x + 14, card_y + 52)
@@ -161,11 +183,11 @@ class AnalyticsWindow:
 
         # Chart card background
         self._draw_rounded_rect(cr, chart_x, chart_y, chart_w, chart_h, 12)
-        cr.set_source_rgb(*WHITE)
+        cr.set_source_rgb(*tc["card"])
         cr.fill()
 
         # Chart title
-        cr.set_source_rgb(*DARK)
+        cr.set_source_rgb(*tc["fg"])
         cr.select_font_face("Sans", 0, 1)
         cr.set_font_size(14)
         cr.move_to(chart_x + 16, chart_y + 28)
@@ -202,7 +224,7 @@ class AnalyticsWindow:
             cr.fill()
 
             # Score label above bar
-            cr.set_source_rgb(*DARK)
+            cr.set_source_rgb(*tc["fg"])
             cr.select_font_face("Sans", 0, 1)
             cr.set_font_size(11)
             score_text = str(day.score)
@@ -211,7 +233,7 @@ class AnalyticsWindow:
             cr.show_text(score_text)
 
             # Day label below
-            cr.set_source_rgb(*GRAY)
+            cr.set_source_rgb(*tc["dim"])
             cr.select_font_face("Sans", 0, 0)
             cr.set_font_size(10)
             label = _day_label(day.date)
@@ -219,7 +241,7 @@ class AnalyticsWindow:
             cr.move_to(bx + bar_w / 2 - tw / 2, bar_area_y + bar_area_h + 16)
             cr.show_text(label)
 
-    def _draw_score_ring(self, cr, cx: float, cy: float, r: float, score: int) -> None:
+    def _draw_score_ring(self, cr, cx: float, cy: float, r: float, score: int, tc: dict) -> None:
         """Draw a circular score gauge."""
         import cairo
 
@@ -227,7 +249,7 @@ class AnalyticsWindow:
         cr.new_sub_path()
         cr.set_line_width(5)
         cr.set_line_cap(cairo.LINE_CAP_BUTT)
-        cr.set_source_rgba(*GRAY, 0.2)
+        cr.set_source_rgba(*tc["dim"], 0.2)
         cr.arc(cx, cy, r, 0, 2 * math.pi)
         cr.stroke()
 
@@ -250,7 +272,7 @@ class AnalyticsWindow:
             cr.stroke()
 
         # Score text
-        cr.set_source_rgb(*DARK)
+        cr.set_source_rgb(*tc["fg"])
         cr.select_font_face("Sans", 0, 1)
         cr.set_font_size(18)
         text = f"{score}%"

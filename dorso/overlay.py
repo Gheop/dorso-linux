@@ -173,8 +173,14 @@ class _TransparentOverlay(Gtk.Window):
         return False
 
     def set_intensity(self, v: float) -> None:
+        old = self._intensity
         self._intensity = max(0.0, min(1.0, v))
         self._da.queue_draw()
+        # When overlay becomes active, re-present to bring above other windows
+        if old == 0 and v > 0:
+            self.present()
+            # Re-apply passthrough since present() may steal focus
+            GLib.timeout_add(50, self._reapply_passthrough)
 
     def set_warning_mode(self, m: WarningMode) -> None:
         self._warning_mode = m

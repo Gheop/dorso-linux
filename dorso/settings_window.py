@@ -63,8 +63,12 @@ class SettingsWindow:
         header.append(spacer)
 
         if self._on_recalibrate:
-            recal_btn = Gtk.Button(label="Recalibrer")
-            recal_btn.set_icon_name("view-refresh-symbolic")
+            recal_btn = Gtk.Button()
+            btn_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            btn_icon = Gtk.Image.new_from_icon_name("view-refresh-symbolic")
+            btn_content.append(btn_icon)
+            btn_content.append(Gtk.Label(label="Recalibrer"))
+            recal_btn.set_child(btn_content)
             recal_btn.add_css_class("suggested-action")
             recal_btn.connect("clicked", lambda b: self._on_recalibrate())
             header.append(recal_btn)
