@@ -158,11 +158,13 @@ class TrayIcon:
         on_toggle: Callable[[], None],
         on_calibrate: Callable[[], None],
         on_settings: Callable[[], None],
+        on_analytics: Callable[[], None],
         on_quit: Callable[[], None],
     ) -> None:
         self._on_toggle = on_toggle
         self._on_calibrate = on_calibrate
         self._on_settings = on_settings
+        self._on_analytics = on_analytics
         self._on_quit = on_quit
         self._current_state = "disabled"
         self._bus: Gio.DBusConnection | None = None
@@ -305,36 +307,37 @@ class TrayIcon:
             invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "")
 
     def _build_menu_layout(self) -> tuple:
-        """Build DBusMenu layout structure.
+        """Build DBusMenu layout structure."""
+        status_labels = {
+            "good": "Bonne posture",
+            "bad": "Mauvaise posture",
+            "away": "Absent",
+            "paused": "En pause",
+            "calibrating": "Calibration…",
+            "disabled": "Désactivé",
+        }
+        status = status_labels.get(self._current_state, "—")
 
-        Format: (id, {properties}, [children])
-        """
+        def _item(id, label, enabled=True):
+            return GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
+                id, {"label": GLib.Variant("s", label), "enabled": GLib.Variant("b", enabled)}, [],
+            )))
+
+        def _sep(id):
+            return GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
+                id, {"type": GLib.Variant("s", "separator")}, [],
+            )))
+
         children = [
-            GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
-                1,
-                {"label": GLib.Variant("s", "Activer/Désactiver"), "enabled": GLib.Variant("b", True)},
-                [],
-            ))),
-            GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
-                2,
-                {"label": GLib.Variant("s", "Calibrer"), "enabled": GLib.Variant("b", True)},
-                [],
-            ))),
-            GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
-                3,
-                {"label": GLib.Variant("s", "Paramètres"), "enabled": GLib.Variant("b", True)},
-                [],
-            ))),
-            GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
-                4,
-                {"type": GLib.Variant("s", "separator")},
-                [],
-            ))),
-            GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
-                5,
-                {"label": GLib.Variant("s", "Quitter"), "enabled": GLib.Variant("b", True)},
-                [],
-            ))),
+            _item(10, f"Status: {status}", False),
+            _sep(11),
+            _item(1, "Activer/Désactiver"),
+            _item(2, "Recalibrer"),
+            _sep(12),
+            _item(3, "Analytiques"),
+            _item(4, "Paramètres"),
+            _sep(13),
+            _item(5, "Quitter"),
         ]
         return (0, {"children-display": GLib.Variant("s", "submenu")}, children)
 
@@ -344,6 +347,8 @@ class TrayIcon:
         elif item_id == 2:
             self._on_calibrate()
         elif item_id == 3:
+            self._on_analytics()
+        elif item_id == 4:
             self._on_settings()
         elif item_id == 5:
             self._on_quit()
