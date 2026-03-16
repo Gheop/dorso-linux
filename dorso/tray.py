@@ -117,6 +117,10 @@ DBUSMENU_XML = """
       <arg name="revision" type="u"/>
       <arg name="parent" type="i"/>
     </signal>
+    <property name="Version" type="u" access="read"/>
+    <property name="TextDirection" type="s" access="read"/>
+    <property name="Status" type="s" access="read"/>
+    <property name="IconThemePath" type="as" access="read"/>
   </interface>
 </node>
 """
@@ -169,11 +173,11 @@ class TrayIcon:
             self._on_sni_method, self._on_sni_prop, None,
         )
 
-        # Register DBusMenu object
+        # Register DBusMenu object (with property handler for Version etc.)
         menu_info = Gio.DBusNodeInfo.new_for_xml(DBUSMENU_XML)
         self._menu_reg_id = self._bus.register_object(
             DBUSMENU_PATH, menu_info.interfaces[0],
-            self._on_menu_method, None, None,
+            self._on_menu_method, self._on_menu_prop, None,
         )
 
         self._bus_name_id = Gio.bus_own_name_on_connection(
@@ -244,6 +248,16 @@ class TrayIcon:
         return props.get(prop)
 
     # -- DBusMenu interface --
+
+    def _on_menu_prop(self, conn, sender, path, iface, prop):
+        """DBusMenu properties required by GNOME's AppIndicator extension."""
+        props = {
+            "Version": GLib.Variant("u", 3),
+            "TextDirection": GLib.Variant("s", "ltr"),
+            "Status": GLib.Variant("s", "normal"),
+            "IconThemePath": GLib.Variant("as", []),
+        }
+        return props.get(prop)
 
     def _on_menu_method(self, conn, sender, path, iface, method, params, inv):
         if method == "GetLayout":
