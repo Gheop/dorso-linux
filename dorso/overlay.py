@@ -123,7 +123,6 @@ class _TransparentOverlay(Gtk.Window):
         super().__init__()
         self._intensity = 0.0
         self._warning_mode = WarningMode.GLOW
-        self._raise_timer_id = 0
 
         geo = monitor.get_geometry()
 
@@ -157,6 +156,7 @@ class _TransparentOverlay(Gtk.Window):
         s = self.get_surface()
         if s:
             s.set_input_region(_c.Region())
+            logger.debug("passthrough applied")
         return False
 
     def present_once(self) -> None:
@@ -166,27 +166,9 @@ class _TransparentOverlay(Gtk.Window):
         for delay in (100, 500, 1500):
             GLib.timeout_add(delay, self._apply_passthrough)
 
-    def _raise_periodically(self) -> bool:
-        """Timer callback: re-present overlay to stay above other windows."""
-        if self._intensity > 0:
-            self.present()
-            GLib.timeout_add(50, self._apply_passthrough)
-            return True  # keep timer running
-        self._raise_timer_id = 0
-        return False  # stop timer
-
     def set_intensity(self, v: float) -> None:
-        old = self._intensity
         self._intensity = max(0.0, min(1.0, v))
         self._da.queue_draw()
-
-        # When overlay becomes active, re-present and start periodic raise
-        if v > 0 and old == 0:
-            self.present()
-            GLib.timeout_add(50, self._apply_passthrough)
-            # Periodically re-raise every 3 seconds while slouching
-            if self._raise_timer_id == 0:
-                self._raise_timer_id = GLib.timeout_add_seconds(3, self._raise_periodically)
 
     def set_warning_mode(self, m: WarningMode) -> None:
         self._warning_mode = m

@@ -265,7 +265,9 @@ class TrayIcon:
                 self._revision, self._build_layout(),
             )))
         elif method == "GetGroupProperties":
-            inv.return_value(GLib.Variant("(a(ia{sv}),)", ([],)))
+            inv.return_value(GLib.Variant.new_tuple(
+                GLib.Variant.new_array(GLib.VariantType("(ia{sv})"), []),
+            ))
         elif method == "Event":
             args = params.unpack()
             item_id = args[0]
