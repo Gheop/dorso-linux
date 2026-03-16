@@ -16,7 +16,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from dorso.models import WarningMode
 
@@ -108,17 +108,24 @@ def _draw_effect(cr, w, h, mode, intensity):
 # ---------- Transparent overlay window (works on GNOME Wayland + X11) ----------
 
 class _TransparentOverlay(Gtk.Window):
-    """Maximized transparent window with per-pixel alpha via CSS + Cairo."""
+    """Always-visible maximized transparent window.
+
+    The window is shown and maximized once at startup, then never
+    hidden. When intensity=0, it draws nothing (fully transparent).
+    This avoids show/hide/maximize cycles that steal keyboard focus.
+    """
 
     def __init__(self, monitor: Gdk.Monitor) -> None:
         super().__init__()
         self._intensity = 0.0
         self._warning_mode = WarningMode.GLOW
+        self._ready = False
 
         geo = monitor.get_geometry()
 
         self.set_decorated(False)
         self.set_can_focus(False)
+        self.set_focusable(False)
         self.set_default_size(geo.width, geo.height)
 
         # CSS transparency
@@ -137,27 +144,37 @@ class _TransparentOverlay(Gtk.Window):
         self.set_child(da)
         self._da = da
 
-        # Input passthrough + layer shell or generic setup
         self.connect("realize", self._on_realize)
 
         logger.info("Transparent overlay: %s (%dx%d)",
                      monitor.get_connector(), geo.width, geo.height)
 
-    def _on_realize(self, widget):
+    def _on_realize(self, widget) -> None:
         import cairo as _c
         s = self.get_surface()
         if s:
             s.set_input_region(_c.Region())
+        self._ready = True
+
+    def present_once(self) -> None:
+        """Show and maximize once. After this, the window stays up forever."""
+        self.set_visible(True)
+        self.maximize()
+        # Re-apply passthrough after compositor processes maximize
+        GLib.timeout_add(100, self._reapply_passthrough)
+        GLib.timeout_add(500, self._reapply_passthrough)
+        GLib.timeout_add(1500, self._reapply_passthrough)
+
+    def _reapply_passthrough(self) -> bool:
+        import cairo as _c
+        s = self.get_surface()
+        if s:
+            s.set_input_region(_c.Region())
+        return False
 
     def set_intensity(self, v: float) -> None:
         self._intensity = max(0.0, min(1.0, v))
-        if self._intensity > 0:
-            if not self.get_visible():
-                self.set_visible(True)
-                self.maximize()
-            self._da.queue_draw()
-        else:
-            self.set_visible(False)
+        self._da.queue_draw()
 
     def set_warning_mode(self, m: WarningMode) -> None:
         self._warning_mode = m
@@ -277,11 +294,12 @@ class OverlayManager:
                 except Exception as e:
                     logger.warning("Layer Shell overlay failed for monitor %d: %s", i, e)
         else:
-            # GNOME Wayland / X11: one transparent window on primary monitor
-            # (GNOME Wayland doesn't support per-monitor window placement)
+            # GNOME Wayland / X11: always-visible transparent window
             o = _TransparentOverlay(monitors.get_item(0))
             o.set_warning_mode(self._warning_mode)
             self._overlays.append(o)
+            # Show and maximize once — stays up forever (draws nothing when idle)
+            o.present_once()
 
         self._available = len(self._overlays) > 0
 

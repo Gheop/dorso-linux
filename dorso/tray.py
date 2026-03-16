@@ -1,17 +1,13 @@
-"""System tray icon using Gio.DBusConnection (StatusNotifierItem).
+"""System tray icon using StatusNotifierItem + DBusMenu.
 
-Works with GTK4 without conflicting with GTK3. Uses the freedesktop
-StatusNotifierItem / DBusMenu protocol supported by KDE, GNOME (with
-extension), Sway, etc.
-
-Fallback: if SNI is not available, logs a warning and runs without tray.
+Uses ItemIsMenu=True so GNOME's AppIndicator extension shows the
+menu positioned under the tray icon on left click.
 """
 
 from __future__ import annotations
 
 import io
 import logging
-import struct
 import tempfile
 from pathlib import Path
 from typing import Callable
@@ -27,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 def _make_icon_png(color: str, size: int = 22) -> bytes:
-    """Create a colored circle icon as PNG bytes."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     margin = 2
@@ -36,30 +31,6 @@ def _make_icon_png(color: str, size: int = 22) -> bytes:
     img.save(buf, format="PNG")
     return buf.getvalue()
 
-
-def _make_icon_pixmap(color: str, size: int = 22) -> tuple[int, int, bytes]:
-    """Create icon as ARGB pixmap data for StatusNotifierItem.
-
-    Returns (width, height, argb_bytes).
-    """
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    margin = 2
-    draw.ellipse([margin, margin, size - margin, size - margin], fill=color)
-    # Convert RGBA to ARGB (network byte order)
-    pixels = img.tobytes("raw", "RGBA")
-    argb = bytearray(len(pixels))
-    for i in range(0, len(pixels), 4):
-        r, g, b, a = pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]
-        argb[i] = a
-        argb[i + 1] = r
-        argb[i + 2] = g
-        argb[i + 3] = b
-    return size, size, bytes(argb)
-
-
-# Save icons to temp files for icon path approach
-_icon_dir: Path | None = None
 
 ICON_COLORS = {
     "good": "#4CAF50",
@@ -70,9 +41,10 @@ ICON_COLORS = {
     "disabled": "#616161",
 }
 
+_icon_dir: Path | None = None
+
 
 def _ensure_icon_files() -> Path:
-    """Save icon PNGs to a temp dir and return the dir path."""
     global _icon_dir
     if _icon_dir and _icon_dir.exists():
         return _icon_dir
@@ -82,12 +54,10 @@ def _ensure_icon_files() -> Path:
     return _icon_dir
 
 
-# DBusMenu XML interface (minimal subset)
-DBUSMENU_INTERFACE = "com.canonical.dbusmenu"
-DBUSMENU_PATH = "/MenuBar"
-
-SNI_INTERFACE = "org.kde.StatusNotifierItem"
 SNI_PATH = "/StatusNotifierItem"
+SNI_INTERFACE = "org.kde.StatusNotifierItem"
+DBUSMENU_PATH = "/MenuBar"
+DBUSMENU_INTERFACE = "com.canonical.dbusmenu"
 
 SNI_XML = """
 <node>
@@ -105,10 +75,7 @@ SNI_XML = """
       <arg name="y" type="i" direction="in"/>
     </method>
     <signal name="NewIcon"/>
-    <signal name="NewTitle"/>
-    <signal name="NewStatus">
-      <arg type="s"/>
-    </signal>
+    <signal name="NewStatus"><arg type="s"/></signal>
     <property name="Category" type="s" access="read"/>
     <property name="Id" type="s" access="read"/>
     <property name="Title" type="s" access="read"/>
@@ -131,6 +98,11 @@ DBUSMENU_XML = """
       <arg name="revision" type="u" direction="out"/>
       <arg name="layout" type="(ia{sv}av)" direction="out"/>
     </method>
+    <method name="GetGroupProperties">
+      <arg name="ids" type="ai" direction="in"/>
+      <arg name="propertyNames" type="as" direction="in"/>
+      <arg name="properties" type="a(ia{sv})" direction="out"/>
+    </method>
     <method name="Event">
       <arg name="id" type="i" direction="in"/>
       <arg name="eventId" type="s" direction="in"/>
@@ -149,9 +121,18 @@ DBUSMENU_XML = """
 </node>
 """
 
+_STATUS_LABELS = {
+    "good": "Bonne posture",
+    "bad": "Mauvaise posture",
+    "away": "Absent",
+    "paused": "En pause",
+    "calibrating": "Calibration…",
+    "disabled": "Désactivé",
+}
+
 
 class TrayIcon:
-    """System tray icon using StatusNotifierItem over D-Bus."""
+    """System tray icon with DBusMenu."""
 
     def __init__(
         self,
@@ -172,51 +153,34 @@ class TrayIcon:
         self._menu_reg_id = 0
         self._bus_name_id = 0
         self._icon_dir = _ensure_icon_files()
-        self._menu_revision = 1
+        self._revision = 1
 
     def start(self) -> None:
-        """Register on the session bus as a StatusNotifierItem."""
         try:
             self._bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         except Exception as e:
-            logger.warning("Cannot connect to session bus for tray: %s", e)
+            logger.warning("Cannot connect to session bus: %s", e)
             return
 
         # Register SNI object
         sni_info = Gio.DBusNodeInfo.new_for_xml(SNI_XML)
         self._sni_reg_id = self._bus.register_object(
-            SNI_PATH,
-            sni_info.interfaces[0],
-            self._on_sni_method_call,
-            self._on_sni_get_property,
-            None,
+            SNI_PATH, sni_info.interfaces[0],
+            self._on_sni_method, self._on_sni_prop, None,
         )
 
         # Register DBusMenu object
         menu_info = Gio.DBusNodeInfo.new_for_xml(DBUSMENU_XML)
         self._menu_reg_id = self._bus.register_object(
-            DBUSMENU_PATH,
-            menu_info.interfaces[0],
-            self._on_menu_method_call,
-            None,
-            None,
+            DBUSMENU_PATH, menu_info.interfaces[0],
+            self._on_menu_method, None, None,
         )
 
-        # Own a unique bus name
         self._bus_name_id = Gio.bus_own_name_on_connection(
-            self._bus,
-            "org.kde.StatusNotifierItem-dorso",
-            Gio.BusNameOwnerFlags.NONE,
-            None,
-            None,
+            self._bus, "org.kde.StatusNotifierItem-dorso",
+            Gio.BusNameOwnerFlags.NONE, None, None,
         )
 
-        # Register with the StatusNotifierWatcher
-        self._register_with_watcher()
-
-    def _register_with_watcher(self) -> None:
-        if not self._bus:
-            return
         try:
             self._bus.call_sync(
                 "org.kde.StatusNotifierWatcher",
@@ -224,27 +188,33 @@ class TrayIcon:
                 "org.kde.StatusNotifierWatcher",
                 "RegisterStatusNotifierItem",
                 GLib.Variant("(s)", ("org.kde.StatusNotifierItem-dorso",)),
-                None,
-                Gio.DBusCallFlags.NONE,
-                1000,
-                None,
+                None, Gio.DBusCallFlags.NONE, 1000, None,
             )
             logger.info("Registered with StatusNotifierWatcher")
         except Exception as e:
-            logger.warning("Could not register with StatusNotifierWatcher: %s", e)
+            logger.warning("Could not register with watcher: %s", e)
 
     def update_state(self, state: str) -> None:
-        """Update tray icon state."""
         if state not in ICON_COLORS:
             return
+        old = self._current_state
         self._current_state = state
         if self._bus and self._sni_reg_id:
             try:
-                self._bus.emit_signal(
-                    None, SNI_PATH, SNI_INTERFACE, "NewIcon", None
-                )
+                self._bus.emit_signal(None, SNI_PATH, SNI_INTERFACE, "NewIcon", None)
             except Exception:
                 pass
+            # Update menu revision so status line refreshes
+            if old != state:
+                self._revision += 1
+                try:
+                    self._bus.emit_signal(
+                        None, DBUSMENU_PATH, DBUSMENU_INTERFACE,
+                        "LayoutUpdated",
+                        GLib.Variant("(ui)", (self._revision, 0)),
+                    )
+                except Exception:
+                    pass
 
     def stop(self) -> None:
         if self._bus:
@@ -255,101 +225,77 @@ class TrayIcon:
             if self._bus_name_id:
                 Gio.bus_unown_name(self._bus_name_id)
 
-    def _on_sni_method_call(
-        self, connection, sender, path, interface, method, params, invocation
-    ) -> None:
-        if method == "Activate":
-            # ItemIsMenu=True means the host should show the menu on click
-            # If the host calls Activate anyway, just ignore it
-            invocation.return_value(None)
-        elif method == "ContextMenu":
-            # Context menu is handled via DBusMenu
-            invocation.return_value(None)
-        elif method == "SecondaryActivate":
-            invocation.return_value(None)
-        else:
-            invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "")
+    # -- SNI interface --
 
-    def _on_sni_get_property(
-        self, connection, sender, path, interface, prop_name
-    ) -> GLib.Variant:
-        if prop_name == "Category":
-            return GLib.Variant("s", "ApplicationStatus")
-        elif prop_name == "Id":
-            return GLib.Variant("s", "dorso")
-        elif prop_name == "Title":
-            return GLib.Variant("s", "Dorso — Posture Monitor")
-        elif prop_name == "Status":
-            return GLib.Variant("s", "Active")
-        elif prop_name == "IconName":
-            return GLib.Variant("s", f"dorso-{self._current_state}")
-        elif prop_name == "IconThemePath":
-            return GLib.Variant("s", str(self._icon_dir))
-        elif prop_name == "Menu":
-            return GLib.Variant("o", DBUSMENU_PATH)
-        elif prop_name == "ItemIsMenu":
-            return GLib.Variant("b", True)
-        return None
+    def _on_sni_method(self, conn, sender, path, iface, method, params, inv):
+        inv.return_value(None)
 
-    def _on_menu_method_call(
-        self, connection, sender, path, interface, method, params, invocation
-    ) -> None:
-        if method == "GetLayout":
-            layout = self._build_menu_layout()
-            invocation.return_value(GLib.Variant("(u(ia{sv}av))", (self._menu_revision, layout)))
-        elif method == "Event":
-            item_id, event_id, _data, _timestamp = params.unpack()
-            if event_id == "clicked":
-                self._handle_menu_click(item_id)
-            invocation.return_value(None)
-        elif method == "AboutToShow":
-            invocation.return_value(GLib.Variant("(b)", (False,)))
-        else:
-            invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "")
-
-    def _build_menu_layout(self) -> tuple:
-        """Build DBusMenu layout structure."""
-        status_labels = {
-            "good": "Bonne posture",
-            "bad": "Mauvaise posture",
-            "away": "Absent",
-            "paused": "En pause",
-            "calibrating": "Calibration…",
-            "disabled": "Désactivé",
+    def _on_sni_prop(self, conn, sender, path, iface, prop):
+        props = {
+            "Category": GLib.Variant("s", "ApplicationStatus"),
+            "Id": GLib.Variant("s", "dorso"),
+            "Title": GLib.Variant("s", "Dorso — Posture Monitor"),
+            "Status": GLib.Variant("s", "Active"),
+            "IconName": GLib.Variant("s", f"dorso-{self._current_state}"),
+            "IconThemePath": GLib.Variant("s", str(self._icon_dir)),
+            "Menu": GLib.Variant("o", DBUSMENU_PATH),
+            "ItemIsMenu": GLib.Variant("b", True),
         }
-        status = status_labels.get(self._current_state, "—")
+        return props.get(prop)
 
-        def _item(id, label, enabled=True):
-            return GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
-                id, {"label": GLib.Variant("s", label), "enabled": GLib.Variant("b", enabled)}, [],
-            )))
+    # -- DBusMenu interface --
 
-        def _sep(id):
-            return GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
-                id, {"type": GLib.Variant("s", "separator")}, [],
+    def _on_menu_method(self, conn, sender, path, iface, method, params, inv):
+        if method == "GetLayout":
+            inv.return_value(GLib.Variant("(u(ia{sv}av))", (
+                self._revision, self._build_layout(),
             )))
+        elif method == "GetGroupProperties":
+            inv.return_value(GLib.Variant("(a(ia{sv}),)", ([],)))
+        elif method == "Event":
+            args = params.unpack()
+            item_id = args[0]
+            event_id = args[1]
+            if event_id == "clicked":
+                self._handle_click(item_id)
+            inv.return_value(None)
+        elif method == "AboutToShow":
+            # Return True to signal the menu may have changed
+            inv.return_value(GLib.Variant("(b)", (True,)))
+        else:
+            inv.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "")
+
+    def _build_layout(self) -> tuple:
+        """Build the DBusMenu layout."""
+        status = _STATUS_LABELS.get(self._current_state, "—")
+
+        def item(id, props):
+            return GLib.Variant("v", GLib.Variant("(ia{sv}av)", (id, props, [])))
 
         children = [
-            _item(10, f"Status: {status}", False),
-            _sep(11),
-            _item(1, "Activer/Désactiver"),
-            _item(2, "Recalibrer"),
-            _sep(12),
-            _item(3, "Analytiques"),
-            _item(4, "Paramètres"),
-            _sep(13),
-            _item(5, "Quitter"),
+            item(10, {
+                "label": GLib.Variant("s", f"Status: {status}"),
+                "enabled": GLib.Variant("b", False),
+            }),
+            item(11, {"type": GLib.Variant("s", "separator")}),
+            item(1, {"label": GLib.Variant("s", "Activer/Désactiver")}),
+            item(2, {"label": GLib.Variant("s", "Recalibrer")}),
+            item(12, {"type": GLib.Variant("s", "separator")}),
+            item(3, {"label": GLib.Variant("s", "Analytiques")}),
+            item(4, {"label": GLib.Variant("s", "Paramètres")}),
+            item(13, {"type": GLib.Variant("s", "separator")}),
+            item(5, {"label": GLib.Variant("s", "Quitter")}),
         ]
         return (0, {"children-display": GLib.Variant("s", "submenu")}, children)
 
-    def _handle_menu_click(self, item_id: int) -> None:
-        if item_id == 1:
-            self._on_toggle()
-        elif item_id == 2:
-            self._on_calibrate()
-        elif item_id == 3:
-            self._on_analytics()
-        elif item_id == 4:
-            self._on_settings()
-        elif item_id == 5:
-            self._on_quit()
+    def _handle_click(self, item_id: int) -> None:
+        actions = {
+            1: self._on_toggle,
+            2: self._on_calibrate,
+            3: self._on_analytics,
+            4: self._on_settings,
+            5: self._on_quit,
+        }
+        cb = actions.get(item_id)
+        if cb:
+            cb()
