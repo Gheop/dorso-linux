@@ -131,7 +131,13 @@ class SettingsWindow:
         header_box.append(spacer)
 
         if self._on_recalibrate:
-            recal_btn = Gtk.Button(label="Recalibrer")
+            recal_btn = Gtk.Button()
+            recal_btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            recal_icon = Gtk.Label(label="↻")
+            recal_icon.set_markup("<span size='large'>↻</span>")
+            recal_btn_box.append(recal_icon)
+            recal_btn_box.append(Gtk.Label(label="Recalibrer"))
+            recal_btn.set_child(recal_btn_box)
             recal_btn.add_css_class("dorso-accent-btn")
             recal_btn.connect("clicked", lambda b: self._on_recalibrate())
             header_box.append(recal_btn)

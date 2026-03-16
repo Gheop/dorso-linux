@@ -224,14 +224,15 @@ class AnalyticsWindow:
         import cairo
 
         # Background ring
+        cr.new_sub_path()
         cr.set_line_width(5)
+        cr.set_line_cap(cairo.LINE_CAP_BUTT)
         cr.set_source_rgba(*GRAY, 0.2)
         cr.arc(cx, cy, r, 0, 2 * math.pi)
         cr.stroke()
 
         # Score arc
         if score > 0:
-            # Color: teal for high, orange for medium, red for low
             if score >= 70:
                 color = TEAL
             elif score >= 40:
@@ -239,6 +240,7 @@ class AnalyticsWindow:
             else:
                 color = RED
 
+            cr.new_sub_path()
             cr.set_line_width(5)
             cr.set_line_cap(cairo.LINE_CAP_ROUND)
             cr.set_source_rgb(*color)
