@@ -108,36 +108,22 @@ def _draw_effect(cr, w, h, mode, intensity):
 # ---------- Transparent overlay window (works on GNOME Wayland + X11) ----------
 
 class _TransparentOverlay(Gtk.Window):
-    """Always-visible maximized transparent window.
+    """Always-on-top fullscreen overlay using compositor opacity.
 
-    The window is shown and maximized once at startup, then never
-    hidden. When intensity=0, it draws nothing (fully transparent).
-    This avoids show/hide/maximize cycles that steal keyboard focus.
+    Uses fullscreen() to stay above all windows. Transparency is
+    handled by set_opacity() (compositor-level). The window draws
+    opaque content; Mutter blends it. Empty input region ensures
+    clicks and keys pass through.
     """
 
     def __init__(self, monitor: Gdk.Monitor) -> None:
         super().__init__()
         self._intensity = 0.0
         self._warning_mode = WarningMode.GLOW
-        self._ready = False
-
-        geo = monitor.get_geometry()
 
         self.set_decorated(False)
         self.set_can_focus(False)
         self.set_focusable(False)
-        self.set_default_size(geo.width, geo.height)
-
-        # CSS transparency
-        css = Gtk.CssProvider()
-        css.load_from_string(
-            "window.dorso-overlay, window.dorso-overlay > * "
-            "{ background: none; background-color: transparent; }"
-        )
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
-        self.add_css_class("dorso-overlay")
 
         da = Gtk.DrawingArea()
         da.set_draw_func(self._on_draw)
@@ -146,24 +132,23 @@ class _TransparentOverlay(Gtk.Window):
 
         self.connect("realize", self._on_realize)
 
-        logger.info("Transparent overlay: %s (%dx%d)",
-                     monitor.get_connector(), geo.width, geo.height)
+        geo = monitor.get_geometry()
+        logger.info("Fullscreen overlay: %s (%dx%d)", monitor.get_connector(), geo.width, geo.height)
 
     def _on_realize(self, widget) -> None:
         import cairo as _c
         s = self.get_surface()
         if s:
             s.set_input_region(_c.Region())
-        self._ready = True
 
     def present_once(self) -> None:
-        """Show and maximize once. After this, the window stays up forever."""
+        """Show fullscreen at opacity 0. Stays up forever."""
+        self.set_opacity(0.0)
         self.set_visible(True)
-        self.maximize()
-        # Re-apply passthrough after compositor processes maximize
-        GLib.timeout_add(100, self._reapply_passthrough)
-        GLib.timeout_add(500, self._reapply_passthrough)
-        GLib.timeout_add(1500, self._reapply_passthrough)
+        self.fullscreen()
+        # Re-apply passthrough after compositor processes fullscreen
+        for delay in (100, 500, 1500, 3000):
+            GLib.timeout_add(delay, self._reapply_passthrough)
 
     def _reapply_passthrough(self) -> bool:
         import cairo as _c
@@ -174,6 +159,8 @@ class _TransparentOverlay(Gtk.Window):
 
     def set_intensity(self, v: float) -> None:
         self._intensity = max(0.0, min(1.0, v))
+        # Compositor opacity: 0 = invisible, maps intensity to max ~45%
+        self.set_opacity(self._intensity * 0.45)
         self._da.queue_draw()
 
     def set_warning_mode(self, m: WarningMode) -> None:
@@ -182,15 +169,19 @@ class _TransparentOverlay(Gtk.Window):
             self._da.queue_draw()
 
     def _on_draw(self, area, cr, w, h):
-        import cairo
-        # Clear to transparent
-        cr.set_operator(cairo.OPERATOR_SOURCE)
-        cr.set_source_rgba(0, 0, 0, 0)
+        # Black background (compositor opacity makes it transparent)
+        cr.set_source_rgba(0, 0, 0, 1)
         cr.paint()
-        cr.set_operator(cairo.OPERATOR_OVER)
 
         if self._intensity > 0:
-            _draw_effect(cr, w, h, self._warning_mode, self._intensity)
+            # Draw effect fully opaque — compositor handles alpha
+            r, g, b = WARNING_COLOR
+            if self._warning_mode == WarningMode.BORDER:
+                _draw_border(cr, w, h, r, g, b, 1.0)
+            elif self._warning_mode == WarningMode.SOLID:
+                _draw_solid(cr, w, h, r, g, b, 1.0)
+            else:
+                _draw_glow(cr, w, h, r, g, b, 1.0)
 
 
 # ---------- Layer Shell overlay (Sway/Hyprland) ----------
