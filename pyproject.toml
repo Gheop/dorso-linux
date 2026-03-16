@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dorso-linux"
+version = "0.1.0"
+description = "Posture monitoring tool for Linux — inspired by dorso for macOS"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "opencv-python>=4.8",
+    "mediapipe>=0.10",
+    "PyGObject>=3.44",
+    "pystray>=0.19",
+    "Pillow>=10.0",
+    "dbus-python>=1.3",
+    "tomli-w>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "mypy",
+    "ruff",
+]
+
+[project.scripts]
+dorso = "dorso.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["dorso*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
