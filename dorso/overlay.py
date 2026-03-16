@@ -108,79 +108,70 @@ def _draw_effect(cr, w, h, mode, intensity):
 # ---------- Transparent overlay window (works on GNOME Wayland + X11) ----------
 
 class _TransparentOverlay(Gtk.Window):
-    """Always-visible maximized transparent overlay.
+    """Overlay that goes fullscreen only while slouching.
 
-    Shown and maximized once at startup, never hidden or re-maximized.
-    Per-pixel alpha via CSS + Cairo. No focus steal because no window
-    state changes after initial setup. Empty input region for passthrough.
-
-    Note: on GNOME, other windows may cover the overlay when clicked.
-    This is a GNOME Wayland limitation (no always-on-top without fullscreen,
-    and fullscreen hides the top bar).
+    When idle (intensity=0): window is hidden, no impact on desktop.
+    When slouching (intensity>0): window goes fullscreen with
+    compositor opacity for transparency. Fullscreen ensures the overlay
+    stays above ALL windows. The top bar hides during slouch — that's
+    intentional (same UX as dorso macOS which blurs the entire screen).
+    Empty input region ensures keyboard/mouse still work.
     """
 
     def __init__(self, monitor: Gdk.Monitor) -> None:
         super().__init__()
         self._intensity = 0.0
         self._warning_mode = WarningMode.GLOW
-
-        geo = monitor.get_geometry()
+        self._is_fullscreen = False
 
         self.set_decorated(False)
         self.set_can_focus(False)
         self.set_focusable(False)
-        self.set_default_size(geo.width, geo.height)
-
-        # CSS transparency
-        css = Gtk.CssProvider()
-        css.load_from_string(
-            "window.dorso-overlay, window.dorso-overlay > * "
-            "{ background: none; background-color: transparent; }"
-        )
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
-        self.add_css_class("dorso-overlay")
 
         da = Gtk.DrawingArea()
         da.set_draw_func(self._on_draw)
         self.set_child(da)
         self._da = da
 
-        self.connect("realize", self._on_realize)
+        self.connect("realize", self._apply_passthrough)
 
+        geo = monitor.get_geometry()
         logger.info("Overlay: %s (%dx%d)", monitor.get_connector(), geo.width, geo.height)
 
-    def _on_realize(self, widget) -> None:
-        import cairo as _c
-        s = self.get_surface()
-        if s:
-            s.set_input_region(_c.Region())
-
-    def present_once(self) -> None:
-        """Show and maximize once at startup."""
-        self.set_visible(True)
-        self.maximize()
-        # Re-apply passthrough after compositor processes maximize
-        for delay in (100, 500, 1500):
-            GLib.timeout_add(delay, self._reapply_passthrough)
-
-    def _reapply_passthrough(self) -> bool:
+    def _apply_passthrough(self, *args) -> bool:
         import cairo as _c
         s = self.get_surface()
         if s:
             s.set_input_region(_c.Region())
         return False
 
+    def present_once(self) -> None:
+        """No-op at startup — window starts hidden."""
+        pass
+
     def set_intensity(self, v: float) -> None:
         old = self._intensity
         self._intensity = max(0.0, min(1.0, v))
-        self._da.queue_draw()
-        # When overlay becomes active, re-present to bring above other windows
-        if old == 0 and v > 0:
-            self.present()
-            # Re-apply passthrough since present() may steal focus
-            GLib.timeout_add(50, self._reapply_passthrough)
+
+        if v > 0 and not self._is_fullscreen:
+            # Go fullscreen to stay above everything
+            self.set_opacity(0.0)
+            self.set_visible(True)
+            self.fullscreen()
+            self._is_fullscreen = True
+            # Apply passthrough after compositor processes fullscreen
+            for delay in (50, 200, 500):
+                GLib.timeout_add(delay, self._apply_passthrough)
+
+        if v > 0:
+            # Update opacity — compositor handles transparency
+            self.set_opacity(v * 0.45)
+            self._da.queue_draw()
+        elif old > 0 and v == 0:
+            # Slouching ended — unfullscreen and hide
+            self.unfullscreen()
+            self.set_visible(False)
+            self._is_fullscreen = False
 
     def set_warning_mode(self, m: WarningMode) -> None:
         self._warning_mode = m
@@ -188,15 +179,18 @@ class _TransparentOverlay(Gtk.Window):
             self._da.queue_draw()
 
     def _on_draw(self, area, cr, w, h):
-        import cairo
-        # Clear to transparent
-        cr.set_operator(cairo.OPERATOR_SOURCE)
-        cr.set_source_rgba(0, 0, 0, 0)
+        # Black background (compositor opacity makes it transparent)
+        cr.set_source_rgba(0, 0, 0, 1)
         cr.paint()
-        cr.set_operator(cairo.OPERATOR_OVER)
 
         if self._intensity > 0:
-            _draw_effect(cr, w, h, self._warning_mode, self._intensity)
+            r, g, b = WARNING_COLOR
+            if self._warning_mode == WarningMode.BORDER:
+                _draw_border(cr, w, h, r, g, b, 1.0)
+            elif self._warning_mode == WarningMode.SOLID:
+                _draw_solid(cr, w, h, r, g, b, 1.0)
+            else:
+                _draw_glow(cr, w, h, r, g, b, 1.0)
 
 
 # ---------- Layer Shell overlay (Sway/Hyprland) ----------
