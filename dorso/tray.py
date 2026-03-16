@@ -252,7 +252,7 @@ class TrayIcon:
     def _on_menu_prop(self, conn, sender, path, iface, prop):
         """DBusMenu properties required by GNOME's AppIndicator extension."""
         props = {
-            "Version": GLib.Variant("u", 3),
+            "Version": GLib.Variant("u", 4),
             "TextDirection": GLib.Variant("s", "ltr"),
             "Status": GLib.Variant("s", "normal"),
             "IconThemePath": GLib.Variant("as", []),
@@ -280,25 +280,32 @@ class TrayIcon:
             inv.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "")
 
     def _build_layout(self) -> tuple:
-        """Build the DBusMenu layout."""
+        """Build the DBusMenu layout (matching Telegram's format)."""
         status = _STATUS_LABELS.get(self._current_state, "—")
 
-        def item(id, props):
-            return GLib.Variant("v", GLib.Variant("(ia{sv}av)", (id, props, [])))
+        def item(id, label, enabled=True, visible=True):
+            return GLib.Variant("(ia{sv}av)", (id, {
+                "label": GLib.Variant("s", label),
+                "enabled": GLib.Variant("b", enabled),
+                "visible": GLib.Variant("b", visible),
+            }, []))
+
+        def sep(id):
+            return GLib.Variant("(ia{sv}av)", (id, {
+                "type": GLib.Variant("s", "separator"),
+                "visible": GLib.Variant("b", True),
+            }, []))
 
         children = [
-            item(10, {
-                "label": GLib.Variant("s", f"Status: {status}"),
-                "enabled": GLib.Variant("b", False),
-            }),
-            item(11, {"type": GLib.Variant("s", "separator")}),
-            item(1, {"label": GLib.Variant("s", "Activer/Désactiver")}),
-            item(2, {"label": GLib.Variant("s", "Recalibrer")}),
-            item(12, {"type": GLib.Variant("s", "separator")}),
-            item(3, {"label": GLib.Variant("s", "Analytiques")}),
-            item(4, {"label": GLib.Variant("s", "Paramètres")}),
-            item(13, {"type": GLib.Variant("s", "separator")}),
-            item(5, {"label": GLib.Variant("s", "Quitter")}),
+            item(10, f"Status: {status}", enabled=False),
+            sep(11),
+            item(1, "Activer/Désactiver"),
+            item(2, "Recalibrer"),
+            sep(12),
+            item(3, "Analytiques"),
+            item(4, "Paramètres"),
+            sep(13),
+            item(5, "Quitter"),
         ]
         return (0, {"children-display": GLib.Variant("s", "submenu")}, children)
 
