@@ -108,25 +108,40 @@ def _draw_effect(cr, w, h, mode, intensity):
 # ---------- Transparent overlay window (works on GNOME Wayland + X11) ----------
 
 class _TransparentOverlay(Gtk.Window):
-    """Overlay that goes fullscreen only while slouching.
+    """Always-visible maximized transparent overlay.
 
-    When idle (intensity=0): window is hidden, no impact on desktop.
-    When slouching (intensity>0): window goes fullscreen with
-    compositor opacity for transparency. Fullscreen ensures the overlay
-    stays above ALL windows. The top bar hides during slouch — that's
-    intentional (same UX as dorso macOS which blurs the entire screen).
-    Empty input region ensures keyboard/mouse still work.
+    Maximized once at startup, stays up forever. Per-pixel alpha via
+    CSS + Cairo. Empty input region for click/keyboard passthrough.
+
+    When slouching starts or intensity changes, re-presents the window
+    to bring it above other windows. On GNOME Wayland this is best-effort
+    — windows clicked after the overlay may cover it until the next
+    intensity change re-presents.
     """
 
     def __init__(self, monitor: Gdk.Monitor) -> None:
         super().__init__()
         self._intensity = 0.0
         self._warning_mode = WarningMode.GLOW
-        self._is_fullscreen = False
+        self._raise_timer_id = 0
+
+        geo = monitor.get_geometry()
 
         self.set_decorated(False)
         self.set_can_focus(False)
         self.set_focusable(False)
+        self.set_default_size(geo.width, geo.height)
+
+        # CSS transparency
+        css = Gtk.CssProvider()
+        css.load_from_string(
+            "window.dorso-overlay, window.dorso-overlay > * "
+            "{ background: none; background-color: transparent; }"
+        )
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        self.add_css_class("dorso-overlay")
 
         da = Gtk.DrawingArea()
         da.set_draw_func(self._on_draw)
@@ -135,7 +150,6 @@ class _TransparentOverlay(Gtk.Window):
 
         self.connect("realize", self._apply_passthrough)
 
-        geo = monitor.get_geometry()
         logger.info("Overlay: %s (%dx%d)", monitor.get_connector(), geo.width, geo.height)
 
     def _apply_passthrough(self, *args) -> bool:
@@ -146,32 +160,33 @@ class _TransparentOverlay(Gtk.Window):
         return False
 
     def present_once(self) -> None:
-        """No-op at startup — window starts hidden."""
-        pass
+        """Show and maximize once at startup."""
+        self.set_visible(True)
+        self.maximize()
+        for delay in (100, 500, 1500):
+            GLib.timeout_add(delay, self._apply_passthrough)
+
+    def _raise_periodically(self) -> bool:
+        """Timer callback: re-present overlay to stay above other windows."""
+        if self._intensity > 0:
+            self.present()
+            GLib.timeout_add(50, self._apply_passthrough)
+            return True  # keep timer running
+        self._raise_timer_id = 0
+        return False  # stop timer
 
     def set_intensity(self, v: float) -> None:
         old = self._intensity
         self._intensity = max(0.0, min(1.0, v))
+        self._da.queue_draw()
 
-        if v > 0 and not self._is_fullscreen:
-            # Go fullscreen to stay above everything
-            self.set_opacity(0.0)
-            self.set_visible(True)
-            self.fullscreen()
-            self._is_fullscreen = True
-            # Apply passthrough after compositor processes fullscreen
-            for delay in (50, 200, 500):
-                GLib.timeout_add(delay, self._apply_passthrough)
-
-        if v > 0:
-            # Update opacity — compositor handles transparency
-            self.set_opacity(v * 0.45)
-            self._da.queue_draw()
-        elif old > 0 and v == 0:
-            # Slouching ended — unfullscreen and hide
-            self.unfullscreen()
-            self.set_visible(False)
-            self._is_fullscreen = False
+        # When overlay becomes active, re-present and start periodic raise
+        if v > 0 and old == 0:
+            self.present()
+            GLib.timeout_add(50, self._apply_passthrough)
+            # Periodically re-raise every 3 seconds while slouching
+            if self._raise_timer_id == 0:
+                self._raise_timer_id = GLib.timeout_add_seconds(3, self._raise_periodically)
 
     def set_warning_mode(self, m: WarningMode) -> None:
         self._warning_mode = m
@@ -179,18 +194,14 @@ class _TransparentOverlay(Gtk.Window):
             self._da.queue_draw()
 
     def _on_draw(self, area, cr, w, h):
-        # Black background (compositor opacity makes it transparent)
-        cr.set_source_rgba(0, 0, 0, 1)
+        import cairo
+        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.set_source_rgba(0, 0, 0, 0)
         cr.paint()
+        cr.set_operator(cairo.OPERATOR_OVER)
 
         if self._intensity > 0:
-            r, g, b = WARNING_COLOR
-            if self._warning_mode == WarningMode.BORDER:
-                _draw_border(cr, w, h, r, g, b, 1.0)
-            elif self._warning_mode == WarningMode.SOLID:
-                _draw_solid(cr, w, h, r, g, b, 1.0)
-            else:
-                _draw_glow(cr, w, h, r, g, b, 1.0)
+            _draw_effect(cr, w, h, self._warning_mode, self._intensity)
 
 
 # ---------- Layer Shell overlay (Sway/Hyprland) ----------
