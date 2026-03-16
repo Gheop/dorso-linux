@@ -157,10 +157,12 @@ class TrayIcon:
         self,
         on_toggle: Callable[[], None],
         on_calibrate: Callable[[], None],
+        on_settings: Callable[[], None],
         on_quit: Callable[[], None],
     ) -> None:
         self._on_toggle = on_toggle
         self._on_calibrate = on_calibrate
+        self._on_settings = on_settings
         self._on_quit = on_quit
         self._current_state = "disabled"
         self._bus: Gio.DBusConnection | None = None
@@ -320,11 +322,16 @@ class TrayIcon:
             ))),
             GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
                 3,
-                {"type": GLib.Variant("s", "separator")},
+                {"label": GLib.Variant("s", "Paramètres"), "enabled": GLib.Variant("b", True)},
                 [],
             ))),
             GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
                 4,
+                {"type": GLib.Variant("s", "separator")},
+                [],
+            ))),
+            GLib.Variant("v", GLib.Variant("(ia{sv}av)", (
+                5,
                 {"label": GLib.Variant("s", "Quitter"), "enabled": GLib.Variant("b", True)},
                 [],
             ))),
@@ -336,5 +343,7 @@ class TrayIcon:
             self._on_toggle()
         elif item_id == 2:
             self._on_calibrate()
-        elif item_id == 4:
+        elif item_id == 3:
+            self._on_settings()
+        elif item_id == 5:
             self._on_quit()

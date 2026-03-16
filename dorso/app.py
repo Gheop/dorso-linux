@@ -12,11 +12,12 @@ from gi.repository import GLib, Gtk
 
 from dorso.calibration import CalibrationDialog
 from dorso.camera_detector import CameraDetector
-from dorso.models import AppState, CalibrationData, PostureReading, WarningMode
+from dorso.models import AppState, CalibrationData, PostureReading
 from dorso.overlay import OverlayManager
 from dorso.posture_engine import Effect, MonitoringState, process_reading, process_screen_lock
 from dorso.screen_lock_observer import ScreenLockObserver
 from dorso.settings import Settings
+from dorso.settings_window import SettingsWindow
 from dorso.tray import TrayIcon
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ class DorsoApp(Gtk.Application):
         self._tray: TrayIcon | None = None
         self._lock_observer: ScreenLockObserver | None = None
         self._screen_locked = False
+        self._settings_window: SettingsWindow | None = None
 
     def do_activate(self) -> None:
         """Called when the application is activated."""
@@ -57,6 +59,7 @@ class DorsoApp(Gtk.Application):
         self._tray = TrayIcon(
             on_toggle=self._on_toggle,
             on_calibrate=self._on_calibrate,
+            on_settings=self._on_settings,
             on_quit=self._on_quit,
         )
         self._tray.start()
@@ -80,7 +83,12 @@ class DorsoApp(Gtk.Application):
         else:
             self._start_calibration()
 
+    # -- Calibration --
+
     def _start_calibration(self) -> None:
+        was_monitoring = self._state == AppState.MONITORING
+        if was_monitoring:
+            self._stop_monitoring()
         self._update_state(AppState.CALIBRATING)
         if self._detector is None:
             return
@@ -102,6 +110,8 @@ class DorsoApp(Gtk.Application):
             self._detector.calibration = data
         self._start_monitoring()
 
+    # -- Monitoring --
+
     def _start_monitoring(self) -> None:
         self._engine_state = MonitoringState()
         self._update_state(AppState.MONITORING)
@@ -117,6 +127,8 @@ class DorsoApp(Gtk.Application):
         if self._overlay:
             self._overlay.clear()
         self._engine_state = MonitoringState()
+
+    # -- Posture readings --
 
     def _on_posture_reading(self, reading: PostureReading) -> None:
         """Called from detector thread — dispatch to main thread."""
@@ -135,7 +147,6 @@ class DorsoApp(Gtk.Application):
             if effect == Effect.UPDATE_OVERLAY:
                 if self._overlay:
                     self._overlay.set_intensity(new_state.warning_intensity)
-                # Adapt frame rate: faster when slouching
                 if self._detector and new_state.is_slouching:
                     self._detector.set_interval(
                         self._settings.detection_mode.slouch_interval
@@ -150,10 +161,11 @@ class DorsoApp(Gtk.Application):
             elif effect == Effect.UPDATE_TRAY:
                 self._update_tray_from_engine()
 
-        return False  # Remove from idle
+        return False
+
+    # -- Screen lock --
 
     def _on_lock_changed(self, is_locked: bool) -> None:
-        """Called from D-Bus thread."""
         GLib.idle_add(self._handle_lock_change, is_locked)
 
     def _handle_lock_change(self, is_locked: bool) -> bool:
@@ -168,6 +180,8 @@ class DorsoApp(Gtk.Application):
                 self._update_tray_from_engine()
 
         return False
+
+    # -- Tray callbacks --
 
     def _on_toggle(self) -> None:
         GLib.idle_add(self._handle_toggle)
@@ -186,6 +200,36 @@ class DorsoApp(Gtk.Application):
     def _on_calibrate(self) -> None:
         GLib.idle_add(self._start_calibration)
 
+    def _on_settings(self) -> None:
+        GLib.idle_add(self._show_settings)
+
+    def _show_settings(self) -> bool:
+        self._settings_window = SettingsWindow(
+            settings=self._settings,
+            on_changed=self._on_settings_changed,
+        )
+        self._settings_window.show()
+        return False
+
+    def _on_settings_changed(self, settings: Settings) -> None:
+        """Apply changed settings live."""
+        self._settings = settings
+
+        # Update overlay warning mode
+        if self._overlay:
+            self._overlay.set_warning_mode(settings.warning_mode)
+
+        # Update detector sensitivity and interval
+        if self._detector:
+            self._detector._sensitivity = settings.slouch_sensitivity
+            if self._state == AppState.MONITORING:
+                self._detector.set_interval(settings.detection_mode.base_interval)
+
+        logger.info("Settings updated: mode=%s, intensity=%.1f, sensitivity=%.3f",
+                     settings.warning_mode.value, settings.intensity, settings.slouch_sensitivity)
+
+    # -- Quit --
+
     def _on_quit(self, *args) -> None:
         GLib.idle_add(self._handle_quit)
 
@@ -198,6 +242,8 @@ class DorsoApp(Gtk.Application):
         self.release()
         self.quit()
         return False
+
+    # -- State management --
 
     def _update_state(self, state: AppState) -> None:
         self._state = state

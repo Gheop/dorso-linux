@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Dorso
+GenericName=Posture Monitor
+Comment=Monitor your posture via webcam
+Exec=python3 -m dorso
+Icon=preferences-desktop-accessibility
+Terminal=false
+Categories=Utility;Accessibility;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
