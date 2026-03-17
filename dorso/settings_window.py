@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import shutil
+from pathlib import Path
 from typing import Callable
 
 import gi
@@ -12,6 +14,17 @@ from gi.repository import Gdk, Gtk
 
 from dorso.models import DetectionMode, WarningMode
 from dorso.settings import Settings
+
+
+def _autostart_path() -> Path:
+    import os
+    xdg = os.environ.get("XDG_CONFIG_HOME")
+    base = Path(xdg) if xdg else Path.home() / ".config"
+    return base / "autostart" / "dorso.desktop"
+
+
+def _desktop_source() -> Path:
+    return Path(__file__).parent.parent / "data" / "dorso.desktop"
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +185,20 @@ class SettingsWindow:
         cam_row.append(self._camera_spin)
         main_box.append(cam_row)
 
+        # ---- Autostart ----
+        main_box.append(Gtk.Separator())
+        autostart_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        autostart_label = Gtk.Label(label="Lancer au démarrage")
+        autostart_label.set_hexpand(True)
+        autostart_label.set_halign(Gtk.Align.START)
+        autostart_row.append(autostart_label)
+        self._autostart_switch = Gtk.Switch()
+        self._autostart_switch.set_active(_autostart_path().exists())
+        self._autostart_switch.set_valign(Gtk.Align.CENTER)
+        self._autostart_switch.connect("notify::active", self._on_autostart_toggled)
+        autostart_row.append(self._autostart_switch)
+        main_box.append(autostart_row)
+
         # ---- Calibration info ----
         if settings.calibration and settings.calibration.is_valid:
             main_box.append(Gtk.Separator())
@@ -244,6 +271,16 @@ class SettingsWindow:
                 b.set_active(False)
         self._updating = False
         self._apply()
+
+    def _on_autostart_toggled(self, switch, pspec) -> None:
+        dst = _autostart_path()
+        if switch.get_active():
+            src = _desktop_source()
+            if src.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+        else:
+            dst.unlink(missing_ok=True)
 
     def _on_color_changed(self, btn, pspec) -> None:
         self._apply()

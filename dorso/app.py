@@ -8,7 +8,7 @@ import signal
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gtk
+from gi.repository import Gio, GLib, Gtk
 
 from dorso.analytics import Analytics
 from dorso.analytics_window import AnalyticsWindow
@@ -78,6 +78,9 @@ class DorsoApp(Gtk.Application):
         # Periodic analytics tick (every 60s)
         GLib.timeout_add_seconds(60, self._analytics_tick)
 
+        # D-Bus toggle service
+        self._register_dbus_toggle()
+
         # SIGINT
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, self._on_quit)
 
@@ -94,6 +97,37 @@ class DorsoApp(Gtk.Application):
             self._start_monitoring()
         else:
             self._start_calibration()
+
+    # -- D-Bus toggle --
+
+    _DBUS_IFACE = """
+    <node>
+      <interface name="org.dorso.App">
+        <method name="Toggle"/>
+      </interface>
+    </node>"""
+
+    def _register_dbus_toggle(self) -> None:
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            node = Gio.DBusNodeInfo.new_for_xml(self._DBUS_IFACE)
+            bus.register_object(
+                "/org/dorso/App",
+                node.interfaces[0],
+                self._on_dbus_call,
+                None,
+                None,
+            )
+            Gio.bus_own_name_on_connection(
+                bus, "org.dorso.App", Gio.BusNameOwnerFlags.NONE, None, None
+            )
+        except Exception as e:
+            logger.warning("D-Bus toggle registration failed: %s", e)
+
+    def _on_dbus_call(self, connection, sender, path, iface, method, params, invocation):
+        if method == "Toggle":
+            self._on_toggle()
+            invocation.return_value(None)
 
     # -- Onboarding --
 

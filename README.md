@@ -73,11 +73,20 @@ The tray icon shows your current posture status (green/red/grey). Click the icon
 
 ### Autostart
 
-To launch dorso automatically on login:
+Toggle "Lancer au démarrage" in settings, or manually:
 
 ```bash
 ./scripts/install-autostart.sh
 ```
+
+### Keyboard shortcut
+
+Dorso exposes a D-Bus `Toggle` method. To bind a global shortcut on GNOME:
+
+**Settings → Keyboard → Custom Shortcuts → +**
+- Name: `Dorso Toggle`
+- Command: `gdbus call --session --dest org.dorso.App --object-path /org/dorso/App --method org.dorso.App.Toggle`
+- Shortcut: your choice (e.g. `Super+Shift+D`)
 
 ## Configuration
 
@@ -137,7 +146,7 @@ If you've done reverse-engineering work on the AAP protocol or know how to acces
 - [x] Custom tray icons (sitting silhouette, green/red/grey/orange/blue)
 - [x] GNOME Shell extension — multi-monitor, always-on-top, click-through overlay
 - [ ] AirPods motion sensor support (requires AAP protocol reverse-engineering)
-- [ ] Global keyboard shortcut to toggle
+- [x] Global keyboard shortcut to toggle (via D-Bus)
 - [x] Onboarding flow on first launch
 - [ ] Flatpak packaging
 
