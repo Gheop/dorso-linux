@@ -6,7 +6,6 @@ menu positioned under the tray icon on left click.
 
 from __future__ import annotations
 
-import io
 import logging
 import tempfile
 from pathlib import Path
@@ -22,36 +21,28 @@ from gi.repository import Gio, GLib
 logger = logging.getLogger(__name__)
 
 
-def _make_icon_png(color: str, size: int = 22) -> bytes:
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    margin = 2
-    draw.ellipse([margin, margin, size - margin, size - margin], fill=color)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
+def _icon_dir() -> Path:
+    """Return path to bundled icons in assets/icons/."""
+    # Look relative to this source file
+    here = Path(__file__).resolve().parent.parent / "assets" / "icons"
+    if here.is_dir():
+        return here
+    # Fallback: generate simple circles in a temp dir
+    return _generate_fallback_icons()
 
 
-ICON_COLORS = {
-    "good": "#4CAF50",
-    "bad": "#F44336",
-    "away": "#9E9E9E",
-    "paused": "#FF9800",
-    "calibrating": "#2196F3",
-    "disabled": "#616161",
-}
-
-_icon_dir: Path | None = None
-
-
-def _ensure_icon_files() -> Path:
-    global _icon_dir
-    if _icon_dir and _icon_dir.exists():
-        return _icon_dir
-    _icon_dir = Path(tempfile.mkdtemp(prefix="dorso-icons-"))
-    for name, color in ICON_COLORS.items():
-        (_icon_dir / f"dorso-{name}.png").write_bytes(_make_icon_png(color, 22))
-    return _icon_dir
+def _generate_fallback_icons() -> Path:
+    d = Path(tempfile.mkdtemp(prefix="dorso-icons-"))
+    colors = {
+        "good": "#4CAF50", "bad": "#F44336", "away": "#9E9E9E",
+        "paused": "#FF9800", "calibrating": "#2196F3", "disabled": "#616161",
+    }
+    for name, color in colors.items():
+        img = Image.new("RGBA", (22, 22), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        draw.ellipse([2, 2, 20, 20], fill=color)
+        img.save(d / f"dorso-{name}.png")
+    return d
 
 
 SNI_PATH = "/StatusNotifierItem"
@@ -156,7 +147,7 @@ class TrayIcon:
         self._sni_reg_id = 0
         self._menu_reg_id = 0
         self._bus_name_id = 0
-        self._icon_dir = _ensure_icon_files()
+        self._icons = _icon_dir()
         self._revision = 1
 
     def start(self) -> None:
@@ -199,7 +190,8 @@ class TrayIcon:
             logger.warning("Could not register with watcher: %s", e)
 
     def update_state(self, state: str) -> None:
-        if state not in ICON_COLORS:
+        _valid = ("good", "bad", "away", "paused", "calibrating", "disabled")
+        if state not in _valid:
             return
         old = self._current_state
         self._current_state = state
@@ -241,7 +233,7 @@ class TrayIcon:
             "Title": GLib.Variant("s", "Dorso — Posture Monitor"),
             "Status": GLib.Variant("s", "Active"),
             "IconName": GLib.Variant("s", f"dorso-{self._current_state}"),
-            "IconThemePath": GLib.Variant("s", str(self._icon_dir)),
+            "IconThemePath": GLib.Variant("s", str(self._icons)),
             "Menu": GLib.Variant("o", DBUSMENU_PATH),
             "ItemIsMenu": GLib.Variant("b", True),
         }
