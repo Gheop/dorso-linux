@@ -1,8 +1,9 @@
 """Screen overlay for visual posture warnings.
 
 Strategy:
+- GNOME Shell extension via D-Bus (all monitors, true always-on-top, click-through)
 - Layer Shell (Sway, Hyprland): one transparent overlay per monitor (perfect)
-- GNOME Wayland: one maximized transparent window (covers primary monitor)
+- GNOME Wayland fallback: one maximized transparent window (covers primary monitor)
 - X11: one transparent window per monitor with input passthrough
 """
 
@@ -16,7 +17,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import Gdk, Gio, GLib, Gtk
 
 from dorso.models import WarningMode
 
@@ -272,6 +273,103 @@ class _LayerShellOverlay(Gtk.Window):
                 _draw_glow(cr, w, h, r, g, b, self._intensity)
 
 
+# ---------- GNOME Shell extension overlay via D-Bus ----------
+
+class _GnomeShellOverlay:
+    """Overlay driven by the dorso GNOME Shell extension over D-Bus.
+
+    The extension creates Clutter actors inside gnome-shell, covering all
+    monitors with true always-on-top and click-through.
+    """
+
+    BUS_NAME = "org.dorso.Overlay"
+    OBJECT_PATH = "/org/dorso/Overlay"
+    IFACE_NAME = "org.dorso.Overlay"
+
+    def __init__(self) -> None:
+        self._proxy: Gio.DBusProxy | None = None
+        self._intensity = 0.0
+        self._warning_mode = WarningMode.GLOW
+        self._color = DEFAULT_WARNING_COLOR
+
+    @staticmethod
+    def available() -> bool:
+        """Check if the GNOME Shell extension D-Bus service is reachable."""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            result = bus.call_sync(
+                "org.freedesktop.DBus",
+                "/org/freedesktop/DBus",
+                "org.freedesktop.DBus",
+                "NameHasOwner",
+                GLib.Variant("(s)", (_GnomeShellOverlay.BUS_NAME,)),
+                GLib.VariantType("(b)"),
+                Gio.DBusCallFlags.NONE,
+                500,
+                None,
+            )
+            return result.unpack()[0]
+        except Exception:
+            return False
+
+    def connect(self) -> None:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        self._proxy = Gio.DBusProxy.new_sync(
+            bus,
+            Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES | Gio.DBusProxyFlags.DO_NOT_CONNECT_SIGNALS,
+            None,
+            self.BUS_NAME,
+            self.OBJECT_PATH,
+            self.IFACE_NAME,
+            None,
+        )
+        logger.info("Using GNOME Shell extension overlay")
+
+    def set_intensity(self, v: float) -> None:
+        self._intensity = max(0.0, min(1.0, v))
+        self._send()
+
+    def set_warning_mode(self, m: WarningMode) -> None:
+        self._warning_mode = m
+        if self._intensity > 0:
+            self._send()
+
+    def set_color(self, color: tuple[float, float, float]) -> None:
+        self._color = color
+        if self._intensity > 0:
+            self._send()
+
+    def _send(self) -> None:
+        if self._proxy is None:
+            return
+        try:
+            if self._intensity <= 0:
+                self._proxy.call_sync(
+                    "Clear", None, Gio.DBusCallFlags.NONE, 500, None
+                )
+            else:
+                r, g, b = self._color
+                self._proxy.call_sync(
+                    "SetOverlay",
+                    GLib.Variant("(dddds)", (self._intensity, r, g, b, self._warning_mode.value)),
+                    Gio.DBusCallFlags.NONE,
+                    500,
+                    None,
+                )
+        except Exception as e:
+            logger.debug("D-Bus overlay call failed: %s", e)
+
+    def destroy(self) -> None:
+        try:
+            if self._proxy:
+                self._proxy.call_sync(
+                    "Clear", None, Gio.DBusCallFlags.NONE, 500, None
+                )
+        except Exception:
+            pass
+        self._proxy = None
+
+
 # ---------- Public API ----------
 
 class OverlayManager:
@@ -283,6 +381,18 @@ class OverlayManager:
         self._available = False
 
     def setup(self) -> None:
+        # Try GNOME Shell extension first (best experience on GNOME)
+        if _GnomeShellOverlay.available():
+            try:
+                ext = _GnomeShellOverlay()
+                ext.connect()
+                ext.set_warning_mode(self._warning_mode)
+                self._overlays.append(ext)
+                self._available = True
+                return
+            except Exception as e:
+                logger.warning("GNOME Shell extension connect failed: %s", e)
+
         display = Gdk.Display.get_default()
         if display is None:
             logger.error("No display available")

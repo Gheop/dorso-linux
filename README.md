@@ -23,6 +23,7 @@ Uses your webcam to detect slouching in real-time and overlays a progressive red
 - **Auto-pause** on screen lock
 - **Calibration** on first launch
 - **TOML config** in `~/.config/dorso/`
+- **GNOME Shell extension** — true always-on-top overlay on all monitors (GNOME Wayland)
 - Works on GNOME Wayland, X11, and Layer Shell compositors (Sway, Hyprland)
 
 ## Requirements
@@ -97,7 +98,7 @@ camera_id = 0                 # camera device index
 2. **Pose detection** — MediaPipe PoseLandmarker extracts nose position and face width
 3. **Slouch detection** — compares nose Y to calibrated baseline with 5-frame smoothing
 4. **Posture engine** — pure logic state machine with hysteresis (8 bad frames to trigger, 5 good to clear)
-5. **Overlay** — transparent GTK4 window with Cairo-drawn glow, click-through via empty input region
+5. **Overlay** — GNOME Shell extension (best), Layer Shell, or transparent GTK4 window with Cairo-drawn glow
 6. **Analytics** — tracks slouch events, duration, and daily scores over 90 days
 
 ## Architecture
@@ -110,15 +111,19 @@ Camera (OpenCV) → Detector (MediaPipe) → PostureEngine (pure logic) → Over
 
 The posture engine is a pure function with no side effects — takes state + reading, returns new state + effects. Fully testable.
 
+### GNOME Shell extension (recommended for GNOME)
+
+For the best experience on GNOME Wayland, install the bundled extension:
+
+```bash
+./scripts/install-extension.sh
+# Log out / log in
+gnome-extensions enable dorso-overlay@dorso-linux
+```
+
+This gives you true always-on-top overlay on all monitors, click-through, no focus stealing, and the GNOME top bar stays visible. Without the extension, dorso falls back to a maximized GTK4 window (single monitor, windows can cover it).
+
 ## Known limitations & help wanted
-
-### Overlay z-order on GNOME Wayland
-
-On GNOME Wayland, the overlay window cannot stay above all other windows without using `fullscreen()` (which hides the GNOME top bar). Currently the overlay is maximized and click-through, but windows clicked after the overlay appeared will cover it. This is a Mutter limitation — GNOME doesn't support the [wlr-layer-shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1) protocol that Sway/Hyprland use for proper overlays.
-
-**On Sway/Hyprland**, the overlay works perfectly via Layer Shell (always on top, click-through, per-monitor).
-
-If you know a way to keep a transparent click-through window always on top on GNOME Wayland without hiding the top bar, please open an issue!
 
 ### AirPods motion sensors
 
@@ -130,7 +135,7 @@ If you've done reverse-engineering work on the AAP protocol or know how to acces
 
 - [x] Overlay color picker
 - [x] Custom tray icons (sitting silhouette, green/red/grey/orange/blue)
-- [ ] Multi-monitor overlay on GNOME (requires Mutter changes or GNOME Shell extension)
+- [x] GNOME Shell extension — multi-monitor, always-on-top, click-through overlay
 - [ ] AirPods motion sensor support (requires AAP protocol reverse-engineering)
 - [ ] Global keyboard shortcut to toggle
 - [ ] Onboarding flow on first launch
