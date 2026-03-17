@@ -11,6 +11,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gdk, Pango
 
 from dorso.analytics import Analytics
+from dorso.i18n import _
 
 # Accent colors (always the same regardless of theme)
 TEAL = (0.24, 0.78, 0.73)
@@ -73,8 +74,8 @@ def _fmt_duration(seconds: float) -> str:
 def _day_label(iso_date: str) -> str:
     try:
         dt = datetime.fromisoformat(iso_date)
-        days_fr = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-        return days_fr[dt.weekday()]
+        days = [_("Mon"), _("Tue"), _("Wed"), _("Thu"), _("Fri"), _("Sat"), _("Sun")]
+        return days[dt.weekday()]
     except Exception:
         return iso_date[-2:]
 
@@ -85,7 +86,7 @@ class AnalyticsWindow:
     def __init__(self, analytics: Analytics) -> None:
         self._analytics = analytics
 
-        self._window = Gtk.Window(title="Dorso — Analytiques")
+        self._window = Gtk.Window(title=_("Dorso — Analytics"))
         self._window.set_default_size(520, 520)
         self._window.set_resizable(False)
 
@@ -119,13 +120,13 @@ class AnalyticsWindow:
         cr.select_font_face("Sans", 0, 1)  # bold
         cr.set_font_size(20)
         cr.move_to(30, 48)
-        cr.show_text("Analytiques Posture")
+        cr.show_text(_("Posture Analytics"))
 
         cr.set_source_rgb(*tc["dim"])
         cr.select_font_face("Sans", 0, 0)
         cr.set_font_size(12)
         cr.move_to(30, 68)
-        cr.show_text("Suivez vos habitudes et votre progression")
+        cr.show_text(_("Track your habits and progress"))
 
         # Today's score (circular gauge) — top right
         score = today.score
@@ -135,9 +136,10 @@ class AnalyticsWindow:
         # "Score du jour" label
         cr.set_source_rgb(*tc["dim"])
         cr.set_font_size(9)
-        tw = cr.text_extents("Score du jour").width
+        _today_score = _("Today's score")
+        tw = cr.text_extents(_today_score).width
         cr.move_to(cx - tw / 2, cy - radius - 8)
-        cr.show_text("Score du jour")
+        cr.show_text(_today_score)
 
         # ---- Stats cards ----
         card_y = 132
@@ -145,9 +147,9 @@ class AnalyticsWindow:
         card_w = (width - 48 - 12) / 3  # 3 cards
 
         stats = [
-            ("Monitoring", _fmt_duration(today.monitoring_seconds), TEAL),
-            ("Slouch", _fmt_duration(today.slouch_seconds), ORANGE),
-            ("Alertes", str(today.slouch_events), RED),
+            (_("Monitoring"), _fmt_duration(today.monitoring_seconds), TEAL),
+            (_("Slouch"), _fmt_duration(today.slouch_seconds), ORANGE),
+            (_("Alerts"), str(today.slouch_events), RED),
         ]
 
         for i, (label, value, color) in enumerate(stats):
@@ -191,7 +193,7 @@ class AnalyticsWindow:
         cr.select_font_face("Sans", 0, 1)
         cr.set_font_size(14)
         cr.move_to(chart_x + 16, chart_y + 28)
-        cr.show_text("7 derniers jours")
+        cr.show_text(_("Last 7 days"))
 
         # Bar chart area
         bar_area_x = chart_x + 16

@@ -1,0 +1,330 @@
+# Spanish translation for dorso.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the dorso package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dorso 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-17 19:41+0100\n"
+"PO-Revision-Date: 2026-03-17 19:41+0100\n"
+"Last-Translator: \n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: dorso/onboarding.py:68
+msgid "Welcome to Dorso"
+msgstr "Bienvenido a Dorso"
+
+#: dorso/onboarding.py:73
+msgid ""
+"Dorso monitors your posture via webcam\n"
+"and shows a <b>red glow</b> when you slouch.\n"
+"\n"
+"The overlay is transparent and doesn't\n"
+"interfere with mouse or keyboard."
+msgstr ""
+"Dorso monitorea tu postura mediante la webcam\n"
+"y muestra un <b>resplandor rojo</b> cuando te encorvas.\n"
+"\n"
+"La superposición es transparente y no\n"
+"interfiere con el ratón ni el teclado."
+
+#: dorso/onboarding.py:86
+msgid "Get started →"
+msgstr "Comenzar →"
+
+#: dorso/onboarding.py:106
+msgid "Calibration"
+msgstr "Calibración"
+
+#: dorso/onboarding.py:111
+msgid ""
+"Sit <b>up straight</b> in your best posture.\n"
+"Make sure you are visible in the preview."
+msgstr ""
+"Siéntate <b>bien erguido</b> en tu mejor postura.\n"
+"Asegúrate de ser visible en la vista previa."
+
+#: dorso/onboarding.py:135 dorso/calibration.py:60
+msgid "Calibrate"
+msgstr "Calibrar"
+
+#: dorso/onboarding.py:141 dorso/calibration.py:65
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: dorso/onboarding.py:160
+msgid "All set!"
+msgstr "¡Todo listo!"
+
+#: dorso/onboarding.py:165
+msgid ""
+"Dorso is now running in the background.\n"
+"\n"
+"• <b>Tray icon</b> — real-time posture status\n"
+"• <b>Settings</b> — warning mode, color, sensitivity\n"
+"• <b>Analytics</b> — daily score and history"
+msgstr ""
+"Dorso se está ejecutando en segundo plano.\n"
+"\n"
+"• <b>Icono de bandeja</b> — estado de tu postura en tiempo real\n"
+"• <b>Ajustes</b> — modo de alerta, color, sensibilidad\n"
+"• <b>Analíticas</b> — puntuación diaria e historial"
+
+#: dorso/onboarding.py:178
+msgid "Start"
+msgstr "Iniciar"
+
+#: dorso/onboarding.py:252
+msgid ""
+"<b>Camera not found</b>\n"
+"\n"
+"Make sure your webcam is plugged in\n"
+"and try again."
+msgstr ""
+"<b>Cámara no encontrada</b>\n"
+"\n"
+"Asegúrate de que tu webcam esté conectada\n"
+"e inténtalo de nuevo."
+
+#: dorso/onboarding.py:265
+msgid ""
+"<big><b>Calibrating…</b></big>\n"
+"Stay still for a few seconds."
+msgstr ""
+"<big><b>Calibrando…</b></big>\n"
+"No te muevas durante unos segundos."
+
+#: dorso/onboarding.py:282
+msgid ""
+"<b>Calibration failed</b>\n"
+"\n"
+"Make sure you are clearly visible to the camera\n"
+"and try again."
+msgstr ""
+"<b>Calibración fallida</b>\n"
+"\n"
+"Asegúrate de ser claramente visible para la cámara\n"
+"e inténtalo de nuevo."
+
+#: dorso/calibration.py:32
+msgid "Dorso — Calibration"
+msgstr "Dorso — Calibración"
+
+#: dorso/calibration.py:46
+msgid ""
+"<big><b>Posture calibration</b></big>\n"
+"\n"
+"Sit up straight in your best\n"
+"posture, then click\n"
+"<b>Calibrate</b>."
+msgstr ""
+"<big><b>Calibración de postura</b></big>\n"
+"\n"
+"Siéntate bien erguido en tu\n"
+"mejor postura, luego haz clic en\n"
+"<b>Calibrar</b>."
+
+#: dorso/calibration.py:78
+msgid ""
+"<big><b>Calibrating…</b></big>\n"
+"\n"
+"Stay still for a few\n"
+"seconds."
+msgstr ""
+"<big><b>Calibrando…</b></big>\n"
+"\n"
+"No te muevas durante unos\n"
+"segundos."
+
+#: dorso/settings_window.py:47
+msgid "Dorso — Settings"
+msgstr "Dorso — Ajustes"
+
+#: dorso/settings_window.py:84 dorso/tray.py:300
+msgid "Recalibrate"
+msgstr "Recalibrar"
+
+#: dorso/settings_window.py:94
+msgid "Warning mode"
+msgstr "Modo de alerta"
+
+#: dorso/settings_window.py:105
+msgid "Glow"
+msgstr "Glow"
+
+#: dorso/settings_window.py:106
+msgid "Border"
+msgstr "Bordes"
+
+#: dorso/settings_window.py:107
+msgid "Solid"
+msgstr "Sólido"
+
+#: dorso/settings_window.py:108
+msgid "None"
+msgstr "Ninguno"
+
+#: dorso/settings_window.py:134 dorso/tray.py:303
+msgid "Settings"
+msgstr "Ajustes"
+
+#: dorso/settings_window.py:140
+msgid "Intensity"
+msgstr "Intensidad"
+
+#: dorso/settings_window.py:141
+msgid "Gentle"
+msgstr "Suave"
+
+#: dorso/settings_window.py:141
+msgid "Strong"
+msgstr "Fuerte"
+
+#: dorso/settings_window.py:141 dorso/settings_window.py:145
+msgid "Medium"
+msgstr "Medio"
+
+#: dorso/settings_window.py:144
+msgid "Sensitivity"
+msgstr "Sensibilidad"
+
+#: dorso/settings_window.py:145
+msgid "High"
+msgstr "Alta"
+
+#: dorso/settings_window.py:145
+msgid "Low"
+msgstr "Baja"
+
+#: dorso/settings_window.py:148
+msgid "Warning delay"
+msgstr "Retardo de alerta"
+
+#: dorso/settings_window.py:154
+msgid "Detection speed"
+msgstr "Velocidad de detección"
+
+#: dorso/settings_window.py:163
+msgid "Responsive"
+msgstr "Reactivo"
+
+#: dorso/settings_window.py:164
+msgid "Balanced"
+msgstr "Equilibrado"
+
+#: dorso/settings_window.py:165
+msgid "Eco"
+msgstr "Eco"
+
+#: dorso/settings_window.py:179
+msgid "Camera"
+msgstr "Cámara"
+
+#: dorso/settings_window.py:192
+msgid "Launch at startup"
+msgstr "Iniciar con el sistema"
+
+#: dorso/analytics_window.py:77
+msgid "Mon"
+msgstr "Lun"
+
+#: dorso/analytics_window.py:77
+msgid "Tue"
+msgstr "Mar"
+
+#: dorso/analytics_window.py:77
+msgid "Wed"
+msgstr "Mié"
+
+#: dorso/analytics_window.py:77
+msgid "Thu"
+msgstr "Jue"
+
+#: dorso/analytics_window.py:77
+msgid "Fri"
+msgstr "Vie"
+
+#: dorso/analytics_window.py:77
+msgid "Sat"
+msgstr "Sáb"
+
+#: dorso/analytics_window.py:77
+msgid "Sun"
+msgstr "Dom"
+
+#: dorso/analytics_window.py:89
+msgid "Dorso — Analytics"
+msgstr "Dorso — Analíticas"
+
+#: dorso/analytics_window.py:123
+msgid "Posture Analytics"
+msgstr "Analíticas de Postura"
+
+#: dorso/analytics_window.py:129
+msgid "Track your habits and progress"
+msgstr "Sigue tus hábitos y tu progreso"
+
+#: dorso/analytics_window.py:139
+msgid "Today's score"
+msgstr "Puntuación de hoy"
+
+#: dorso/analytics_window.py:150
+msgid "Monitoring"
+msgstr "Monitoreo"
+
+#: dorso/analytics_window.py:151
+msgid "Slouch"
+msgstr "Encorvado"
+
+#: dorso/analytics_window.py:152
+msgid "Alerts"
+msgstr "Alertas"
+
+#: dorso/analytics_window.py:196
+msgid "Last 7 days"
+msgstr "Últimos 7 días"
+
+#: dorso/tray.py:123
+msgid "Good posture"
+msgstr "Buena postura"
+
+#: dorso/tray.py:124
+msgid "Bad posture"
+msgstr "Mala postura"
+
+#: dorso/tray.py:125
+msgid "Away"
+msgstr "Ausente"
+
+#: dorso/tray.py:126
+msgid "Paused"
+msgstr "En pausa"
+
+#: dorso/tray.py:127
+msgid "Calibrating…"
+msgstr "Calibrando…"
+
+#: dorso/tray.py:128
+msgid "Disabled"
+msgstr "Desactivado"
+
+#: dorso/tray.py:297
+msgid "Status"
+msgstr "Estado"
+
+#: dorso/tray.py:299
+msgid "Toggle"
+msgstr "Activar/Desactivar"
+
+#: dorso/tray.py:302
+msgid "Analytics"
+msgstr "Analíticas"
+
+#: dorso/tray.py:305
+msgid "Quit"
+msgstr "Salir"

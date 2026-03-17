@@ -1,0 +1,330 @@
+# Japanese translation for dorso.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the dorso package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dorso 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-17 19:41+0100\n"
+"PO-Revision-Date: 2026-03-17 19:41+0100\n"
+"Last-Translator: \n"
+"Language-Team: Japanese\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: dorso/onboarding.py:68
+msgid "Welcome to Dorso"
+msgstr "Dorso へようこそ"
+
+#: dorso/onboarding.py:73
+msgid ""
+"Dorso monitors your posture via webcam\n"
+"and shows a <b>red glow</b> when you slouch.\n"
+"\n"
+"The overlay is transparent and doesn't\n"
+"interfere with mouse or keyboard."
+msgstr ""
+"Dorso はウェブカメラで姿勢を監視し、\n"
+"猫背になると<b>赤い光</b>を表示します。\n"
+"\n"
+"オーバーレイは透明で、\n"
+"マウスやキーボードの操作を妨げません。"
+
+#: dorso/onboarding.py:86
+msgid "Get started →"
+msgstr "はじめる →"
+
+#: dorso/onboarding.py:106
+msgid "Calibration"
+msgstr "キャリブレーション"
+
+#: dorso/onboarding.py:111
+msgid ""
+"Sit <b>up straight</b> in your best posture.\n"
+"Make sure you are visible in the preview."
+msgstr ""
+"<b>背筋を伸ばして</b>最も良い姿勢で座ってください。\n"
+"プレビューに映っていることを確認してください。"
+
+#: dorso/onboarding.py:135 dorso/calibration.py:60
+msgid "Calibrate"
+msgstr "キャリブレーション"
+
+#: dorso/onboarding.py:141 dorso/calibration.py:65
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: dorso/onboarding.py:160
+msgid "All set!"
+msgstr "準備完了！"
+
+#: dorso/onboarding.py:165
+msgid ""
+"Dorso is now running in the background.\n"
+"\n"
+"• <b>Tray icon</b> — real-time posture status\n"
+"• <b>Settings</b> — warning mode, color, sensitivity\n"
+"• <b>Analytics</b> — daily score and history"
+msgstr ""
+"Dorso はバックグラウンドで動作しています。\n"
+"\n"
+"• <b>トレイアイコン</b> — リアルタイムの姿勢状態\n"
+"• <b>設定</b> — 警告モード、色、感度\n"
+"• <b>分析</b> — 日別スコアと履歴"
+
+#: dorso/onboarding.py:178
+msgid "Start"
+msgstr "スタート"
+
+#: dorso/onboarding.py:252
+msgid ""
+"<b>Camera not found</b>\n"
+"\n"
+"Make sure your webcam is plugged in\n"
+"and try again."
+msgstr ""
+"<b>カメラが見つかりません</b>\n"
+"\n"
+"ウェブカメラが接続されていることを確認し、\n"
+"もう一度お試しください。"
+
+#: dorso/onboarding.py:265
+msgid ""
+"<big><b>Calibrating…</b></big>\n"
+"Stay still for a few seconds."
+msgstr ""
+"<big><b>キャリブレーション中…</b></big>\n"
+"数秒間じっとしていてください。"
+
+#: dorso/onboarding.py:282
+msgid ""
+"<b>Calibration failed</b>\n"
+"\n"
+"Make sure you are clearly visible to the camera\n"
+"and try again."
+msgstr ""
+"<b>キャリブレーション失敗</b>\n"
+"\n"
+"カメラにはっきりと映っていることを確認し、\n"
+"もう一度お試しください。"
+
+#: dorso/calibration.py:32
+msgid "Dorso — Calibration"
+msgstr "Dorso — キャリブレーション"
+
+#: dorso/calibration.py:46
+msgid ""
+"<big><b>Posture calibration</b></big>\n"
+"\n"
+"Sit up straight in your best\n"
+"posture, then click\n"
+"<b>Calibrate</b>."
+msgstr ""
+"<big><b>姿勢キャリブレーション</b></big>\n"
+"\n"
+"背筋を伸ばして最も良い\n"
+"姿勢で座り、\n"
+"<b>キャリブレーション</b>をクリックしてください。"
+
+#: dorso/calibration.py:78
+msgid ""
+"<big><b>Calibrating…</b></big>\n"
+"\n"
+"Stay still for a few\n"
+"seconds."
+msgstr ""
+"<big><b>キャリブレーション中…</b></big>\n"
+"\n"
+"数秒間じっとして\n"
+"いてください。"
+
+#: dorso/settings_window.py:47
+msgid "Dorso — Settings"
+msgstr "Dorso — 設定"
+
+#: dorso/settings_window.py:84 dorso/tray.py:300
+msgid "Recalibrate"
+msgstr "再キャリブレーション"
+
+#: dorso/settings_window.py:94
+msgid "Warning mode"
+msgstr "警告モード"
+
+#: dorso/settings_window.py:105
+msgid "Glow"
+msgstr "グロー"
+
+#: dorso/settings_window.py:106
+msgid "Border"
+msgstr "ボーダー"
+
+#: dorso/settings_window.py:107
+msgid "Solid"
+msgstr "ソリッド"
+
+#: dorso/settings_window.py:108
+msgid "None"
+msgstr "なし"
+
+#: dorso/settings_window.py:134 dorso/tray.py:303
+msgid "Settings"
+msgstr "設定"
+
+#: dorso/settings_window.py:140
+msgid "Intensity"
+msgstr "強度"
+
+#: dorso/settings_window.py:141
+msgid "Gentle"
+msgstr "弱"
+
+#: dorso/settings_window.py:141
+msgid "Strong"
+msgstr "強"
+
+#: dorso/settings_window.py:141 dorso/settings_window.py:145
+msgid "Medium"
+msgstr "中"
+
+#: dorso/settings_window.py:144
+msgid "Sensitivity"
+msgstr "感度"
+
+#: dorso/settings_window.py:145
+msgid "High"
+msgstr "高"
+
+#: dorso/settings_window.py:145
+msgid "Low"
+msgstr "低"
+
+#: dorso/settings_window.py:148
+msgid "Warning delay"
+msgstr "警告の遅延"
+
+#: dorso/settings_window.py:154
+msgid "Detection speed"
+msgstr "検出速度"
+
+#: dorso/settings_window.py:163
+msgid "Responsive"
+msgstr "高速"
+
+#: dorso/settings_window.py:164
+msgid "Balanced"
+msgstr "バランス"
+
+#: dorso/settings_window.py:165
+msgid "Eco"
+msgstr "エコ"
+
+#: dorso/settings_window.py:179
+msgid "Camera"
+msgstr "カメラ"
+
+#: dorso/settings_window.py:192
+msgid "Launch at startup"
+msgstr "起動時に実行"
+
+#: dorso/analytics_window.py:77
+msgid "Mon"
+msgstr "月"
+
+#: dorso/analytics_window.py:77
+msgid "Tue"
+msgstr "火"
+
+#: dorso/analytics_window.py:77
+msgid "Wed"
+msgstr "水"
+
+#: dorso/analytics_window.py:77
+msgid "Thu"
+msgstr "木"
+
+#: dorso/analytics_window.py:77
+msgid "Fri"
+msgstr "金"
+
+#: dorso/analytics_window.py:77
+msgid "Sat"
+msgstr "土"
+
+#: dorso/analytics_window.py:77
+msgid "Sun"
+msgstr "日"
+
+#: dorso/analytics_window.py:89
+msgid "Dorso — Analytics"
+msgstr "Dorso — 分析"
+
+#: dorso/analytics_window.py:123
+msgid "Posture Analytics"
+msgstr "姿勢の分析"
+
+#: dorso/analytics_window.py:129
+msgid "Track your habits and progress"
+msgstr "習慣と進捗を追跡"
+
+#: dorso/analytics_window.py:139
+msgid "Today's score"
+msgstr "今日のスコア"
+
+#: dorso/analytics_window.py:150
+msgid "Monitoring"
+msgstr "モニタリング"
+
+#: dorso/analytics_window.py:151
+msgid "Slouch"
+msgstr "猫背"
+
+#: dorso/analytics_window.py:152
+msgid "Alerts"
+msgstr "警告"
+
+#: dorso/analytics_window.py:196
+msgid "Last 7 days"
+msgstr "過去7日間"
+
+#: dorso/tray.py:123
+msgid "Good posture"
+msgstr "良い姿勢"
+
+#: dorso/tray.py:124
+msgid "Bad posture"
+msgstr "悪い姿勢"
+
+#: dorso/tray.py:125
+msgid "Away"
+msgstr "離席中"
+
+#: dorso/tray.py:126
+msgid "Paused"
+msgstr "一時停止"
+
+#: dorso/tray.py:127
+msgid "Calibrating…"
+msgstr "キャリブレーション中…"
+
+#: dorso/tray.py:128
+msgid "Disabled"
+msgstr "無効"
+
+#: dorso/tray.py:297
+msgid "Status"
+msgstr "状態"
+
+#: dorso/tray.py:299
+msgid "Toggle"
+msgstr "切替"
+
+#: dorso/tray.py:302
+msgid "Analytics"
+msgstr "分析"
+
+#: dorso/tray.py:305
+msgid "Quit"
+msgstr "終了"

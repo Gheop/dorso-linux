@@ -15,6 +15,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from dorso.camera_detector import CameraDetector
+from dorso.i18n import _
 from dorso.models import CalibrationData
 
 logger = logging.getLogger(__name__)
@@ -64,16 +65,16 @@ class OnboardingWindow:
         box.set_valign(Gtk.Align.CENTER)
 
         title = Gtk.Label()
-        title.set_markup("<span size='xx-large'><b>Bienvenue sur Dorso</b></span>")
+        title.set_markup(f"<span size='xx-large'><b>{_('Welcome to Dorso')}</b></span>")
         box.append(title)
 
         desc = Gtk.Label()
-        desc.set_markup(
-            "Dorso surveille votre posture via la webcam\n"
-            "et affiche un <b>halo rouge</b> quand vous vous voûtez.\n\n"
-            "L'overlay est transparent et ne gêne ni\n"
-            "la souris ni le clavier."
-        )
+        desc.set_markup(_(
+            "Dorso monitors your posture via webcam\n"
+            "and shows a <b>red glow</b> when you slouch.\n\n"
+            "The overlay is transparent and doesn't\n"
+            "interfere with mouse or keyboard."
+        ))
         desc.set_justify(Gtk.Justification.CENTER)
         desc.set_wrap(True)
         box.append(desc)
@@ -82,7 +83,7 @@ class OnboardingWindow:
         spacer.set_vexpand(True)
         box.append(spacer)
 
-        btn = Gtk.Button(label="Commencer →")
+        btn = Gtk.Button(label=_("Get started →"))
         btn.add_css_class("suggested-action")
         btn.add_css_class("pill")
         btn.set_halign(Gtk.Align.CENTER)
@@ -102,14 +103,14 @@ class OnboardingWindow:
         box.set_margin_end(32)
 
         title = Gtk.Label()
-        title.set_markup("<big><b>Calibration</b></big>")
+        title.set_markup(f"<big><b>{_('Calibration')}</b></big>")
         box.append(title)
 
         self._camera_label = Gtk.Label()
-        self._camera_label.set_markup(
-            "Asseyez-vous <b>bien droit</b> dans votre meilleure posture.\n"
-            "Vérifiez que vous êtes visible dans l'aperçu."
-        )
+        self._camera_label.set_markup(_(
+            "Sit <b>up straight</b> in your best posture.\n"
+            "Make sure you are visible in the preview."
+        ))
         self._camera_label.set_justify(Gtk.Justification.CENTER)
         self._camera_label.set_wrap(True)
         box.append(self._camera_label)
@@ -131,13 +132,13 @@ class OnboardingWindow:
         btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         btn_box.set_halign(Gtk.Align.CENTER)
 
-        self._cal_btn = Gtk.Button(label="Calibrer")
+        self._cal_btn = Gtk.Button(label=_("Calibrate"))
         self._cal_btn.add_css_class("suggested-action")
         self._cal_btn.set_size_request(140, -1)
         self._cal_btn.connect("clicked", self._on_calibrate)
         btn_box.append(self._cal_btn)
 
-        self._skip_btn = Gtk.Button(label="Annuler")
+        self._skip_btn = Gtk.Button(label=_("Cancel"))
         self._skip_btn.connect("clicked", self._on_skip)
         btn_box.append(self._skip_btn)
 
@@ -156,16 +157,16 @@ class OnboardingWindow:
         box.set_valign(Gtk.Align.CENTER)
 
         title = Gtk.Label()
-        title.set_markup("<span size='xx-large'><b>C'est prêt !</b></span>")
+        title.set_markup(f"<span size='xx-large'><b>{_('All set!')}</b></span>")
         box.append(title)
 
         desc = Gtk.Label()
-        desc.set_markup(
-            "Dorso tourne maintenant en arrière-plan.\n\n"
-            "• <b>Icône système</b> — état de votre posture en temps réel\n"
-            "• <b>Paramètres</b> — mode d'alerte, couleur, sensibilité\n"
-            "• <b>Analytiques</b> — score du jour et historique"
-        )
+        desc.set_markup(_(
+            "Dorso is now running in the background.\n\n"
+            "• <b>Tray icon</b> — real-time posture status\n"
+            "• <b>Settings</b> — warning mode, color, sensitivity\n"
+            "• <b>Analytics</b> — daily score and history"
+        ))
         desc.set_justify(Gtk.Justification.CENTER)
         desc.set_wrap(True)
         box.append(desc)
@@ -174,7 +175,7 @@ class OnboardingWindow:
         spacer.set_vexpand(True)
         box.append(spacer)
 
-        btn = Gtk.Button(label="Démarrer")
+        btn = Gtk.Button(label=_("Start"))
         btn.add_css_class("suggested-action")
         btn.add_css_class("pill")
         btn.set_halign(Gtk.Align.CENTER)
@@ -247,11 +248,11 @@ class OnboardingWindow:
         return False
 
     def _show_camera_error(self) -> bool:
-        self._camera_label.set_markup(
-            "<b>Caméra introuvable</b>\n\n"
-            "Vérifiez que votre webcam est branchée\n"
-            "et réessayez."
-        )
+        self._camera_label.set_markup(_(
+            "<b>Camera not found</b>\n\n"
+            "Make sure your webcam is plugged in\n"
+            "and try again."
+        ))
         self._cal_btn.set_sensitive(False)
         return False
 
@@ -260,10 +261,10 @@ class OnboardingWindow:
     def _on_calibrate(self, button: Gtk.Button) -> None:
         self._cal_btn.set_sensitive(False)
         self._skip_btn.set_sensitive(False)
-        self._camera_label.set_markup(
-            "<big><b>Calibration en cours…</b></big>\n"
-            "Restez immobile quelques secondes."
-        )
+        self._camera_label.set_markup(_(
+            "<big><b>Calibrating…</b></big>\n"
+            "Stay still for a few seconds."
+        ))
         self._spinner.set_spinning(True)
         self._stop_preview()
         self._detector.calibrate(self._on_calibration_done)
@@ -277,11 +278,11 @@ class OnboardingWindow:
             self._calibration_data = data
             self._go_to_done()
         else:
-            self._camera_label.set_markup(
-                "<b>Calibration échouée</b>\n\n"
-                "Assurez-vous d'être bien visible par la caméra\n"
-                "et réessayez."
-            )
+            self._camera_label.set_markup(_(
+                "<b>Calibration failed</b>\n\n"
+                "Make sure you are clearly visible to the camera\n"
+                "and try again."
+            ))
             self._cal_btn.set_sensitive(True)
             self._skip_btn.set_sensitive(True)
             self._start_preview()

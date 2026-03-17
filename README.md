@@ -145,10 +145,12 @@ If you've done reverse-engineering work on the AAP protocol or know how to acces
 - [x] Overlay color picker
 - [x] Custom tray icons (sitting silhouette, green/red/grey/orange/blue)
 - [x] GNOME Shell extension — multi-monitor, always-on-top, click-through overlay
-- [ ] AirPods motion sensor support (requires AAP protocol reverse-engineering)
 - [x] Global keyboard shortcut to toggle (via D-Bus)
 - [x] Onboarding flow on first launch
-- [ ] Flatpak packaging
+- [ ] Internationalization (i18n) — auto-detect locale from desktop environment
+- [ ] Publish on PyPI (`pip install dorso-linux`)
+- [ ] Publish GNOME Shell extension on extensions.gnome.org
+- [ ] AirPods motion sensor support (requires AAP protocol reverse-engineering)
 
 ## Tests
 

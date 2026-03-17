@@ -11,6 +11,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
 
 from dorso.camera_detector import CameraDetector
+from dorso.i18n import _
 from dorso.models import CalibrationData
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class CalibrationDialog:
         self._detector = detector
         self._on_complete = on_complete
 
-        self._window = Gtk.Window(title="Dorso — Calibration")
+        self._window = Gtk.Window(title=_("Dorso — Calibration"))
         self._window.set_default_size(400, 250)
         self._window.set_resizable(False)
         if parent:
@@ -41,12 +42,12 @@ class CalibrationDialog:
         box.set_margin_end(24)
 
         self._label = Gtk.Label()
-        self._label.set_markup(
-            "<big><b>Calibration de la posture</b></big>\n\n"
-            "Asseyez-vous bien droit dans votre\n"
-            "meilleure posture, puis cliquez sur\n"
-            "<b>Calibrer</b>."
-        )
+        self._label.set_markup(_(
+            "<big><b>Posture calibration</b></big>\n\n"
+            "Sit up straight in your best\n"
+            "posture, then click\n"
+            "<b>Calibrate</b>."
+        ))
         self._label.set_justify(Gtk.Justification.CENTER)
         box.append(self._label)
 
@@ -56,12 +57,12 @@ class CalibrationDialog:
         btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         btn_box.set_halign(Gtk.Align.CENTER)
 
-        self._calibrate_btn = Gtk.Button(label="Calibrer")
+        self._calibrate_btn = Gtk.Button(label=_("Calibrate"))
         self._calibrate_btn.add_css_class("suggested-action")
         self._calibrate_btn.connect("clicked", self._on_calibrate)
         btn_box.append(self._calibrate_btn)
 
-        self._cancel_btn = Gtk.Button(label="Annuler")
+        self._cancel_btn = Gtk.Button(label=_("Cancel"))
         self._cancel_btn.connect("clicked", self._on_cancel)
         btn_box.append(self._cancel_btn)
 
@@ -73,11 +74,11 @@ class CalibrationDialog:
 
     def _on_calibrate(self, button: Gtk.Button) -> None:
         self._calibrate_btn.set_sensitive(False)
-        self._label.set_markup(
-            "<big><b>Calibration en cours…</b></big>\n\n"
-            "Restez immobile pendant quelques\n"
-            "secondes."
-        )
+        self._label.set_markup(_(
+            "<big><b>Calibrating…</b></big>\n\n"
+            "Stay still for a few\n"
+            "seconds."
+        ))
         self._spinner.set_spinning(True)
 
         self._detector.calibrate(self._on_calibration_done)

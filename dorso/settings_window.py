@@ -12,6 +12,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, Gtk
 
+from dorso.i18n import _
 from dorso.models import DetectionMode, WarningMode
 from dorso.settings import Settings
 
@@ -43,7 +44,7 @@ class SettingsWindow:
         self._on_recalibrate = on_recalibrate
         self._updating = False
 
-        self._window = Gtk.Window(title="Dorso — Paramètres")
+        self._window = Gtk.Window(title=_("Dorso — Settings"))
         self._window.set_default_size(440, 520)
         self._window.set_resizable(False)
 
@@ -80,7 +81,7 @@ class SettingsWindow:
             btn_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
             btn_icon = Gtk.Image.new_from_icon_name("view-refresh-symbolic")
             btn_content.append(btn_icon)
-            btn_content.append(Gtk.Label(label="Recalibrer"))
+            btn_content.append(Gtk.Label(label=_("Recalibrate")))
             recal_btn.set_child(btn_content)
             recal_btn.add_css_class("suggested-action")
             recal_btn.connect("clicked", lambda b: self._on_recalibrate())
@@ -90,7 +91,7 @@ class SettingsWindow:
         main_box.append(Gtk.Separator())
 
         # ---- Warning mode ----
-        warn_label = Gtk.Label(label="Mode d'alerte")
+        warn_label = Gtk.Label(label=_("Warning mode"))
         warn_label.add_css_class("heading")
         warn_label.set_halign(Gtk.Align.START)
         main_box.append(warn_label)
@@ -101,10 +102,10 @@ class SettingsWindow:
         mode_box.add_css_class("linked")
         self._mode_buttons: list[Gtk.ToggleButton] = []
         modes = [
-            ("Glow", WarningMode.GLOW),
-            ("Bordures", WarningMode.BORDER),
-            ("Solide", WarningMode.SOLID),
-            ("Aucun", WarningMode.NONE),
+            (_("Glow"), WarningMode.GLOW),
+            (_("Border"), WarningMode.BORDER),
+            (_("Solid"), WarningMode.SOLID),
+            (_("None"), WarningMode.NONE),
         ]
         for label, mode in modes:
             btn = Gtk.ToggleButton(label=label)
@@ -130,27 +131,27 @@ class SettingsWindow:
 
         # ---- Sliders ----
         main_box.append(Gtk.Separator())
-        sliders_label = Gtk.Label(label="Réglages")
+        sliders_label = Gtk.Label(label=_("Settings"))
         sliders_label.add_css_class("heading")
         sliders_label.set_halign(Gtk.Align.START)
         main_box.append(sliders_label)
 
         self._intensity_scale, self._intensity_vlabel = self._add_slider_row(
-            main_box, "Intensité", 0.1, 3.0, 0.1, settings.intensity,
-            lambda v: "Doux" if v < 0.8 else "Fort" if v > 1.5 else "Moyen"
+            main_box, _("Intensity"), 0.1, 3.0, 0.1, settings.intensity,
+            lambda v: _("Gentle") if v < 0.8 else _("Strong") if v > 1.5 else _("Medium")
         )
         self._sensitivity_scale, self._sensitivity_vlabel = self._add_slider_row(
-            main_box, "Sensibilité", 0.01, 0.10, 0.005, settings.slouch_sensitivity,
-            lambda v: "Haute" if v < 0.03 else "Basse" if v > 0.06 else "Moyenne"
+            main_box, _("Sensitivity"), 0.01, 0.10, 0.005, settings.slouch_sensitivity,
+            lambda v: _("High") if v < 0.03 else _("Low") if v > 0.06 else _("Medium")
         )
         self._delay_scale, self._delay_vlabel = self._add_slider_row(
-            main_box, "Délai avant alerte", 0.0, 5.0, 0.5, settings.warning_onset_delay,
+            main_box, _("Warning delay"), 0.0, 5.0, 0.5, settings.warning_onset_delay,
             lambda v: f"{v:.0f}s"
         )
 
         # ---- Detection mode ----
         main_box.append(Gtk.Separator())
-        det_label = Gtk.Label(label="Vitesse de détection")
+        det_label = Gtk.Label(label=_("Detection speed"))
         det_label.add_css_class("heading")
         det_label.set_halign(Gtk.Align.START)
         main_box.append(det_label)
@@ -159,9 +160,9 @@ class SettingsWindow:
         det_box.add_css_class("linked")
         self._det_buttons: list[Gtk.ToggleButton] = []
         det_modes = [
-            ("Réactif", DetectionMode.RESPONSIVE),
-            ("Équilibré", DetectionMode.BALANCED),
-            ("Éco", DetectionMode.PERFORMANCE),
+            (_("Responsive"), DetectionMode.RESPONSIVE),
+            (_("Balanced"), DetectionMode.BALANCED),
+            (_("Eco"), DetectionMode.PERFORMANCE),
         ]
         for label, mode in det_modes:
             btn = Gtk.ToggleButton(label=label)
@@ -175,7 +176,7 @@ class SettingsWindow:
         # Camera ID
         cam_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         cam_row.set_margin_top(8)
-        cam_label = Gtk.Label(label="Caméra")
+        cam_label = Gtk.Label(label=_("Camera"))
         cam_label.set_hexpand(True)
         cam_label.set_halign(Gtk.Align.START)
         cam_row.append(cam_label)
@@ -188,7 +189,7 @@ class SettingsWindow:
         # ---- Autostart ----
         main_box.append(Gtk.Separator())
         autostart_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        autostart_label = Gtk.Label(label="Lancer au démarrage")
+        autostart_label = Gtk.Label(label=_("Launch at startup"))
         autostart_label.set_hexpand(True)
         autostart_label.set_halign(Gtk.Align.START)
         autostart_row.append(autostart_label)

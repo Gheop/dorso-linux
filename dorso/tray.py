@@ -15,6 +15,8 @@ from PIL import Image, ImageDraw
 
 import gi
 
+from dorso.i18n import _
+
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gio, GLib
 
@@ -116,14 +118,15 @@ DBUSMENU_XML = """
 </node>
 """
 
-_STATUS_LABELS = {
-    "good": "Bonne posture",
-    "bad": "Mauvaise posture",
-    "away": "Absent",
-    "paused": "En pause",
-    "calibrating": "Calibration…",
-    "disabled": "Désactivé",
-}
+def _status_labels():
+    return {
+        "good": _("Good posture"),
+        "bad": _("Bad posture"),
+        "away": _("Away"),
+        "paused": _("Paused"),
+        "calibrating": _("Calibrating…"),
+        "disabled": _("Disabled"),
+    }
 
 
 class TrayIcon:
@@ -275,7 +278,7 @@ class TrayIcon:
 
     def _build_layout(self) -> tuple:
         """Build the DBusMenu layout (matching Telegram's format)."""
-        status = _STATUS_LABELS.get(self._current_state, "—")
+        status = _status_labels().get(self._current_state, "—")
 
         def item(id, label, enabled=True, visible=True):
             return GLib.Variant("(ia{sv}av)", (id, {
@@ -291,15 +294,15 @@ class TrayIcon:
             }, []))
 
         children = [
-            item(10, f"Status: {status}", enabled=False),
+            item(10, f"{_('Status')}: {status}", enabled=False),
             sep(11),
-            item(1, "Activer/Désactiver"),
-            item(2, "Recalibrer"),
+            item(1, _("Toggle")),
+            item(2, _("Recalibrate")),
             sep(12),
-            item(3, "Analytiques"),
-            item(4, "Paramètres"),
+            item(3, _("Analytics")),
+            item(4, _("Settings")),
             sep(13),
-            item(5, "Quitter"),
+            item(5, _("Quit")),
         ]
         return (0, {"children-display": GLib.Variant("s", "submenu")}, children)
 
