@@ -128,13 +128,13 @@ If you've done reverse-engineering work on the AAP protocol or know how to acces
 
 ## Roadmap
 
-- [ ] Overlay color picker (choose glow color in settings)
-- [ ] Custom tray icon (SVG with posture silhouette, keeping green/red/grey status colors)
+- [x] Overlay color picker
+- [x] Custom tray icons (sitting silhouette, green/red/grey/orange/blue)
 - [ ] Multi-monitor overlay on GNOME (requires Mutter changes or GNOME Shell extension)
 - [ ] AirPods motion sensor support (requires AAP protocol reverse-engineering)
-- [ ] Notification integration (libnotify)
 - [ ] Global keyboard shortcut to toggle
-- [ ] Flatpak/Snap packaging
+- [ ] Onboarding flow on first launch
+- [ ] Flatpak packaging
 
 ## Tests
 
