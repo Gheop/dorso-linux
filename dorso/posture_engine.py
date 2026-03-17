@@ -6,8 +6,7 @@ All functions take state + input and return new state + effects.
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from enum import Enum, auto
 
 from dorso.models import PostureConfig, PostureReading

@@ -1,7 +1,6 @@
 """Internationalization — gettext setup with automatic locale detection."""
 
 import gettext
-import locale
 import os
 from pathlib import Path
 

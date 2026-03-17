@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check dorso/
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgirepository1.0-dev gir1.2-gtk-4.0 gettext
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/ -v --tb=short
+
+  locales:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install gettext
+        run: sudo apt-get update && sudo apt-get install -y gettext
+      - name: Validate all .po files
+        run: |
+          for po in locales/*/LC_MESSAGES/dorso.po; do
+            echo "Checking $po..."
+            msgfmt --check "$po" -o /dev/null
+          done
+
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate metadata.json
+        run: |
+          python3 -c "
+          import json, sys
+          meta = json.load(open('gnome-extension/metadata.json'))
+          for k in ['uuid', 'name', 'description', 'shell-version', 'version']:
+              assert k in meta, f'Missing key: {k}'
+          print('metadata.json OK')
+          "
+      - name: Check extension.js syntax
+        run: node --check gnome-extension/extension.js

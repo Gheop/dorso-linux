@@ -8,7 +8,7 @@ from datetime import datetime
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gdk, Pango
+from gi.repository import Gtk, Gdk
 
 from dorso.analytics import Analytics
 from dorso.i18n import _
