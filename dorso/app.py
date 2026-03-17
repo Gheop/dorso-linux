@@ -15,10 +15,11 @@ from dorso.analytics_window import AnalyticsWindow
 from dorso.calibration import CalibrationDialog
 from dorso.camera_detector import CameraDetector
 from dorso.models import AppState, CalibrationData, PostureReading
+from dorso.onboarding import OnboardingWindow
 from dorso.overlay import OverlayManager
 from dorso.posture_engine import Effect, MonitoringState, process_reading, process_screen_lock
 from dorso.screen_lock_observer import ScreenLockObserver
-from dorso.settings import Settings
+from dorso.settings import Settings, is_first_launch
 from dorso.settings_window import SettingsWindow
 from dorso.tray import TrayIcon
 
@@ -30,6 +31,7 @@ class DorsoApp(Gtk.Application):
 
     def __init__(self) -> None:
         super().__init__(application_id="io.github.dorso")
+        self._first_launch = is_first_launch()
         self._settings = Settings.load()
         self._analytics = Analytics()
         self._state = AppState.DISABLED
@@ -85,11 +87,31 @@ class DorsoApp(Gtk.Application):
             self._update_state(AppState.PAUSED)
             return
 
-        if self._settings.calibration and self._settings.calibration.is_valid:
+        if self._first_launch:
+            self._start_onboarding()
+        elif self._settings.calibration and self._settings.calibration.is_valid:
             self._detector.calibration = self._settings.calibration
             self._start_monitoring()
         else:
             self._start_calibration()
+
+    # -- Onboarding --
+
+    def _start_onboarding(self) -> None:
+        self._update_state(AppState.CALIBRATING)
+        if self._detector is None:
+            return
+        self._onboarding = OnboardingWindow(
+            detector=self._detector,
+            camera_id=self._settings.camera_id,
+            on_complete=self._on_onboarding_complete,
+        )
+        self._onboarding.show()
+
+    def _on_onboarding_complete(self, data: CalibrationData | None) -> None:
+        self._on_calibration_complete(data)
+        if data and data.is_valid:
+            self._show_settings()
 
     # -- Calibration --
 

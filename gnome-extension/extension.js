@@ -22,6 +22,11 @@ let _widgets = [];
 let _dbusId = null;
 let _nameId = 0;
 
+// Current overlay state — shared with repaint callbacks
+let _intensity = 0;
+let _r = 0, _g = 0, _b = 0;
+let _mode = 'glow';
+
 function _drawGlow(cr, w, h, r, g, b, intensity) {
     const cx = w / 2, cy = h / 2;
     const maxR = Math.sqrt(cx * cx + cy * cy);
@@ -40,7 +45,6 @@ function _drawBorder(cr, w, h, r, g, b, intensity) {
     const border = Math.max(1, Math.floor(Math.min(w, h) * 0.08 * intensity));
     const alpha = intensity * 0.7;
 
-    // top
     let p = new Cairo.LinearGradient(0, 0, 0, border);
     p.addColorStopRGBA(0, r, g, b, alpha);
     p.addColorStopRGBA(1, r, g, b, 0.0);
@@ -48,7 +52,6 @@ function _drawBorder(cr, w, h, r, g, b, intensity) {
     cr.rectangle(0, 0, w, border);
     cr.fill();
 
-    // bottom
     p = new Cairo.LinearGradient(0, h, 0, h - border);
     p.addColorStopRGBA(0, r, g, b, alpha);
     p.addColorStopRGBA(1, r, g, b, 0.0);
@@ -56,7 +59,6 @@ function _drawBorder(cr, w, h, r, g, b, intensity) {
     cr.rectangle(0, h - border, w, border);
     cr.fill();
 
-    // left
     p = new Cairo.LinearGradient(0, 0, border, 0);
     p.addColorStopRGBA(0, r, g, b, alpha);
     p.addColorStopRGBA(1, r, g, b, 0.0);
@@ -64,7 +66,6 @@ function _drawBorder(cr, w, h, r, g, b, intensity) {
     cr.rectangle(0, 0, border, h);
     cr.fill();
 
-    // right
     p = new Cairo.LinearGradient(w, 0, w - border, 0);
     p.addColorStopRGBA(0, r, g, b, alpha);
     p.addColorStopRGBA(1, r, g, b, 0.0);
@@ -79,23 +80,15 @@ function _drawSolid(cr, w, h, r, g, b, intensity) {
     cr.fill();
 }
 
-function _clearWidgets() {
-    for (const w of _widgets) {
-        w.get_parent()?.remove_child(w);
-        w.destroy();
-    }
-    _widgets = [];
-}
-
-function _setOverlay(intensity, r, g, b, mode) {
-    _clearWidgets();
-
-    if (intensity <= 0)
+function _ensureWidgets() {
+    const monitors = Main.layoutManager.monitors;
+    if (_widgets.length === monitors.length)
         return;
 
-    const nMonitors = Main.layoutManager.monitors.length;
-    for (let i = 0; i < nMonitors; i++) {
-        const mon = Main.layoutManager.monitors[i];
+    _destroyWidgets();
+
+    for (let i = 0; i < monitors.length; i++) {
+        const mon = monitors[i];
         const widget = new St.DrawingArea({
             x: mon.x,
             y: mon.y,
@@ -109,22 +102,58 @@ function _setOverlay(intensity, r, g, b, mode) {
             cr.paint();
             cr.setOperator(Cairo.Operator.OVER);
 
-            if (mode === 'border')
-                _drawBorder(cr, mon.width, mon.height, r, g, b, intensity);
-            else if (mode === 'solid')
-                _drawSolid(cr, mon.width, mon.height, r, g, b, intensity);
-            else
-                _drawGlow(cr, mon.width, mon.height, r, g, b, intensity);
+            if (_intensity > 0) {
+                if (_mode === 'border')
+                    _drawBorder(cr, mon.width, mon.height, _r, _g, _b, _intensity);
+                else if (_mode === 'solid')
+                    _drawSolid(cr, mon.width, mon.height, _r, _g, _b, _intensity);
+                else
+                    _drawGlow(cr, mon.width, mon.height, _r, _g, _b, _intensity);
+            }
 
             cr.$dispose();
         });
+        widget.visible = false;
         Main.layoutManager.addTopChrome(widget, {
             affectsStruts: false,
             trackFullscreen: false,
         });
         _widgets.push(widget);
-        widget.queue_repaint();
     }
+}
+
+function _destroyWidgets() {
+    for (const w of _widgets) {
+        w.get_parent()?.remove_child(w);
+        w.destroy();
+    }
+    _widgets = [];
+}
+
+function _setOverlay(intensity, r, g, b, mode) {
+    _intensity = intensity;
+    _r = r;
+    _g = g;
+    _b = b;
+    _mode = mode;
+
+    if (intensity <= 0) {
+        for (const w of _widgets)
+            w.visible = false;
+        return;
+    }
+
+    _ensureWidgets();
+    for (const w of _widgets) {
+        w.visible = true;
+        w.queue_repaint();
+    }
+}
+
+function _clear() {
+    _intensity = 0;
+    for (const w of _widgets)
+        w.visible = false;
 }
 
 function _onDbusCall(connection, sender, path, ifaceName, methodName, params, invocation) {
@@ -133,7 +162,7 @@ function _onDbusCall(connection, sender, path, ifaceName, methodName, params, in
         _setOverlay(intensity, r, g, b, mode);
         invocation.return_value(null);
     } else if (methodName === 'Clear') {
-        _clearWidgets();
+        _clear();
         invocation.return_value(null);
     }
 }
@@ -158,7 +187,8 @@ export default class DorsoOverlayExtension {
     }
 
     disable() {
-        _clearWidgets();
+        _clear();
+        _destroyWidgets();
         if (_dbusId) {
             Gio.DBus.session.unregister_object(_dbusId);
             _dbusId = null;

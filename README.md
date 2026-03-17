@@ -138,7 +138,7 @@ If you've done reverse-engineering work on the AAP protocol or know how to acces
 - [x] GNOME Shell extension — multi-monitor, always-on-top, click-through overlay
 - [ ] AirPods motion sensor support (requires AAP protocol reverse-engineering)
 - [ ] Global keyboard shortcut to toggle
-- [ ] Onboarding flow on first launch
+- [x] Onboarding flow on first launch
 - [ ] Flatpak packaging
 
 ## Tests

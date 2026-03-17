@@ -28,6 +28,11 @@ def _config_path() -> Path:
     return _config_dir() / "config.toml"
 
 
+def is_first_launch() -> bool:
+    """True if no config file exists yet (never been run before)."""
+    return not _config_path().exists()
+
+
 @dataclass
 class Settings:
     """Application settings with auto-persistence."""
