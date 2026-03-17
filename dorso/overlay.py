@@ -31,7 +31,7 @@ try:
 except (ValueError, ImportError):
     pass
 
-WARNING_COLOR = (0.9, 0.2, 0.1)
+DEFAULT_WARNING_COLOR = (0.9, 0.2, 0.1)
 
 
 def _is_wayland() -> bool:
@@ -95,15 +95,6 @@ def _draw_solid(cr, w: int, h: int, r: float, g: float, b: float, intensity: flo
     cr.fill()
 
 
-def _draw_effect(cr, w, h, mode, intensity):
-    r, g, b = WARNING_COLOR
-    if mode == WarningMode.BORDER:
-        _draw_border(cr, w, h, r, g, b, intensity)
-    elif mode == WarningMode.SOLID:
-        _draw_solid(cr, w, h, r, g, b, intensity)
-    else:
-        _draw_glow(cr, w, h, r, g, b, intensity)
-
 
 # ---------- Transparent overlay window (works on GNOME Wayland + X11) ----------
 
@@ -123,6 +114,7 @@ class _TransparentOverlay(Gtk.Window):
         super().__init__()
         self._intensity = 0.0
         self._warning_mode = WarningMode.GLOW
+        self._color = DEFAULT_WARNING_COLOR
 
         geo = monitor.get_geometry()
 
@@ -175,6 +167,11 @@ class _TransparentOverlay(Gtk.Window):
         if self._intensity > 0:
             self._da.queue_draw()
 
+    def set_color(self, color: tuple[float, float, float]) -> None:
+        self._color = color
+        if self._intensity > 0:
+            self._da.queue_draw()
+
     def _on_draw(self, area, cr, w, h):
         import cairo
         cr.set_operator(cairo.OPERATOR_SOURCE)
@@ -183,7 +180,13 @@ class _TransparentOverlay(Gtk.Window):
         cr.set_operator(cairo.OPERATOR_OVER)
 
         if self._intensity > 0:
-            _draw_effect(cr, w, h, self._warning_mode, self._intensity)
+            r, g, b = self._color
+            if self._warning_mode == WarningMode.BORDER:
+                _draw_border(cr, w, h, r, g, b, self._intensity)
+            elif self._warning_mode == WarningMode.SOLID:
+                _draw_solid(cr, w, h, r, g, b, self._intensity)
+            else:
+                _draw_glow(cr, w, h, r, g, b, self._intensity)
 
 
 # ---------- Layer Shell overlay (Sway/Hyprland) ----------
@@ -195,6 +198,7 @@ class _LayerShellOverlay(Gtk.Window):
         super().__init__()
         self._intensity = 0.0
         self._warning_mode = WarningMode.GLOW
+        self._color = DEFAULT_WARNING_COLOR
 
         self.set_decorated(False)
         self.set_can_focus(False)
@@ -247,6 +251,11 @@ class _LayerShellOverlay(Gtk.Window):
         if self._intensity > 0:
             self._da.queue_draw()
 
+    def set_color(self, color: tuple[float, float, float]) -> None:
+        self._color = color
+        if self._intensity > 0:
+            self._da.queue_draw()
+
     def _on_draw(self, area, cr, w, h):
         import cairo
         cr.set_operator(cairo.OPERATOR_SOURCE)
@@ -254,7 +263,13 @@ class _LayerShellOverlay(Gtk.Window):
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
         if self._intensity > 0:
-            _draw_effect(cr, w, h, self._warning_mode, self._intensity)
+            r, g, b = self._color
+            if self._warning_mode == WarningMode.BORDER:
+                _draw_border(cr, w, h, r, g, b, self._intensity)
+            elif self._warning_mode == WarningMode.SOLID:
+                _draw_solid(cr, w, h, r, g, b, self._intensity)
+            else:
+                _draw_glow(cr, w, h, r, g, b, self._intensity)
 
 
 # ---------- Public API ----------
@@ -308,6 +323,10 @@ class OverlayManager:
         self._warning_mode = mode
         for o in self._overlays:
             o.set_warning_mode(mode)
+
+    def set_color(self, color: tuple[float, float, float]) -> None:
+        for o in self._overlays:
+            o.set_color(color)
 
     def clear(self) -> None:
         self.set_intensity(0.0)

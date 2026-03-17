@@ -82,6 +82,8 @@ class SettingsWindow:
         warn_label.set_halign(Gtk.Align.START)
         main_box.append(warn_label)
 
+        mode_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
         mode_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         mode_box.add_css_class("linked")
         self._mode_buttons: list[Gtk.ToggleButton] = []
@@ -98,7 +100,20 @@ class SettingsWindow:
             btn.connect("toggled", self._on_mode_toggled)
             mode_box.append(btn)
             self._mode_buttons.append(btn)
-        main_box.append(mode_box)
+        mode_row.append(mode_box)
+
+        # Color picker
+        r, g, b = settings.warning_color
+        rgba = Gdk.RGBA()
+        rgba.red, rgba.green, rgba.blue, rgba.alpha = r, g, b, 1.0
+        color_dialog = Gtk.ColorDialog()
+        color_dialog.set_with_alpha(False)
+        self._color_btn = Gtk.ColorDialogButton(dialog=color_dialog)
+        self._color_btn.set_rgba(rgba)
+        self._color_btn.connect("notify::rgba", self._on_color_changed)
+        mode_row.append(self._color_btn)
+
+        main_box.append(mode_row)
 
         # ---- Sliders ----
         main_box.append(Gtk.Separator())
@@ -230,6 +245,9 @@ class SettingsWindow:
         self._updating = False
         self._apply()
 
+    def _on_color_changed(self, btn, pspec) -> None:
+        self._apply()
+
     def _on_value_changed(self, widget) -> None:
         for scale in [self._intensity_scale, self._sensitivity_scale, self._delay_scale]:
             if hasattr(scale, '_dorso_fmt'):
@@ -249,5 +267,9 @@ class SettingsWindow:
         self._settings.slouch_sensitivity = round(self._sensitivity_scale.get_value(), 3)
         self._settings.warning_onset_delay = round(self._delay_scale.get_value(), 1)
         self._settings.camera_id = int(self._camera_spin.get_value())
+        rgba = self._color_btn.get_rgba()
+        self._settings.warning_color = (
+            round(rgba.red, 3), round(rgba.green, 3), round(rgba.blue, 3)
+        )
         self._settings.save()
         self._on_changed(self._settings)

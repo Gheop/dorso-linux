@@ -40,6 +40,7 @@ class Settings:
     warning_onset_delay: float = 0.0
     blur_when_away: bool = False
     camera_id: int = 0
+    warning_color: tuple[float, float, float] = (0.9, 0.2, 0.1)  # RGB 0-1
     calibration: CalibrationData | None = None
 
     def to_posture_config(self) -> PostureConfig:
@@ -62,6 +63,7 @@ class Settings:
             "warning_onset_delay": self.warning_onset_delay,
             "blur_when_away": self.blur_when_away,
             "camera_id": self.camera_id,
+            "warning_color": list(self.warning_color),
         }
         if self.calibration and self.calibration.is_valid:
             data["calibration"] = {
@@ -114,5 +116,6 @@ class Settings:
             warning_onset_delay=float(data.get("warning_onset_delay", 0.0)),
             blur_when_away=bool(data.get("blur_when_away", False)),
             camera_id=int(data.get("camera_id", 0)),
+            warning_color=tuple(data.get("warning_color", [0.9, 0.2, 0.1])),
             calibration=calibration,
         )

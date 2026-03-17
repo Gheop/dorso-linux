@@ -50,6 +50,7 @@ class DorsoApp(Gtk.Application):
         self._overlay = OverlayManager()
         self._overlay.setup()
         self._overlay.set_warning_mode(self._settings.warning_mode)
+        self._overlay.set_color(self._settings.warning_color)
 
         # Camera detector
         self._detector = CameraDetector(
@@ -235,6 +236,7 @@ class DorsoApp(Gtk.Application):
         self._settings = settings
         if self._overlay:
             self._overlay.set_warning_mode(settings.warning_mode)
+            self._overlay.set_color(settings.warning_color)
         if self._detector:
             self._detector._sensitivity = settings.slouch_sensitivity
             if self._state == AppState.MONITORING:
