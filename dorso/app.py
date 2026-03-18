@@ -31,7 +31,7 @@ class DorsoApp(Gtk.Application):
     """Main application class."""
 
     def __init__(self) -> None:
-        super().__init__(application_id="io.github.dorso")
+        super().__init__(application_id="io.github.gheop.dorso")
         self._first_launch = is_first_launch()
         self._settings = Settings.load()
         self._analytics = Analytics()
