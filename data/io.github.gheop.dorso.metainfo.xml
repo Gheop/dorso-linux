@@ -63,7 +63,12 @@
   </branding>
 
   <releases>
-    <release version="0.1.0" date="2026-03-18">
+    <release version="0.1.1" date="2026-03-18">
+      <description>
+        <p>Add Flatpak packaging and app metadata.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-03-14">
       <description>
         <p>Initial release.</p>
       </description>
