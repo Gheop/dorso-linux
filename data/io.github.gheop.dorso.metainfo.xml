@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.gheop.dorso</id>
+
+  <name>Dorso</name>
+  <summary>Posture monitoring with webcam slouch detection</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <developer id="io.github.gheop">
+    <name>Gheop</name>
+  </developer>
+
+  <description>
+    <p>
+      Dorso monitors your posture in real-time using your webcam and MediaPipe
+      pose detection. When you slouch, a progressive red glow appears on the
+      edges of your screen as a gentle reminder to sit straight. The overlay is
+      fully click-through — your keyboard and mouse work normally.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Real-time posture detection via webcam (MediaPipe PoseLandmarker)</li>
+      <li>Progressive screen overlay — red glow that intensifies with slouch severity</li>
+      <li>Settings UI — warning mode, intensity, sensitivity, detection speed</li>
+      <li>Analytics dashboard — daily score, 7-day chart, monitoring time, slouch stats</li>
+      <li>System tray with posture status and quick access menu</li>
+      <li>Dark/light theme support (follows system color scheme)</li>
+      <li>Auto-pause on screen lock</li>
+      <li>Calibration on first launch</li>
+      <li>GNOME Shell extension for true always-on-top overlay on all monitors</li>
+      <li>Works on GNOME Wayland, X11, and Layer Shell compositors (Sway, Hyprland)</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.gheop.dorso.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Calibration — sit in your best posture and click Calibrate</caption>
+      <image>https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/screenshot-calibration.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings — configure warning mode, intensity, and sensitivity</caption>
+      <image>https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/screenshot-settings.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Analytics — daily posture score and 7-day history</caption>
+      <image>https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/screenshot-analytics.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/Gheop/dorso-linux</url>
+  <url type="bugtracker">https://github.com/Gheop/dorso-linux/issues</url>
+  <url type="vcs-browser">https://github.com/Gheop/dorso-linux</url>
+
+  <content_rating type="oars-1.1" />
+
+  <branding>
+    <color type="primary" scheme_preference="light">#4caf50</color>
+    <color type="primary" scheme_preference="dark">#2e7d32</color>
+  </branding>
+
+  <releases>
+    <release version="0.1.0" date="2026-03-18">
+      <description>
+        <p>Initial release.</p>
+      </description>
+    </release>
+  </releases>
+
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+</component>

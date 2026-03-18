@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Dorso
+GenericName=Posture Monitor
+Comment=Webcam-based posture monitoring with screen overlay
+Exec=dorso
+Icon=io.github.gheop.dorso
+Terminal=false
+Categories=Utility;Health;
+Keywords=posture;webcam;slouch;ergonomics;
+StartupNotify=false
