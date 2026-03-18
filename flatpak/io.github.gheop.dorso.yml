@@ -28,7 +28,7 @@ modules:
   - name: dorso
     buildsystem: simple
     build-commands:
-      - pip3 install --no-build-isolation --no-index --find-links . --prefix=${FLATPAK_DEST} .
+      - pip3 install --no-build-isolation --no-deps --no-index --prefix=${FLATPAK_DEST} .
       - install -Dm644 data/io.github.gheop.dorso.desktop ${FLATPAK_DEST}/share/applications/io.github.gheop.dorso.desktop
       - install -Dm644 data/io.github.gheop.dorso.metainfo.xml ${FLATPAK_DEST}/share/metainfo/io.github.gheop.dorso.metainfo.xml
       - install -Dm644 data/icons/hicolor/scalable/apps/io.github.gheop.dorso.svg ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/io.github.gheop.dorso.svg
