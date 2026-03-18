@@ -168,13 +168,10 @@
         },
         {
             "name": "python3-dbus-python",
-            "buildsystem": "simple",
-            "build-commands": [
-                "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"dbus-python\" --no-build-isolation"
-            ],
+            "buildsystem": "meson",
             "sources": [
                 {
-                    "type": "file",
+                    "type": "archive",
                     "url": "https://files.pythonhosted.org/packages/ff/24/63118050c7dd7be04b1ccd60eab53fef00abe844442e1b6dec92dae505d6/dbus-python-1.4.0.tar.gz",
                     "sha256": "991666e498f60dbf3e49b8b7678f5559b8a65034fdf61aae62cdecdb7d89c770"
                 }
