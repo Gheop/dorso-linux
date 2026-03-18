@@ -149,7 +149,7 @@ If you've done reverse-engineering work on the AAP protocol or know how to acces
 - [x] Global keyboard shortcut to toggle (via D-Bus)
 - [x] Onboarding flow on first launch
 - [x] Internationalization — 8 languages, auto-detect locale
-- [ ] Publish on PyPI (`pip install dorso-linux`)
+- [x] Publish on PyPI (`pip install dorso-linux`)
 - [ ] Publish GNOME Shell extension on extensions.gnome.org
 - [ ] AirPods motion sensor support (requires AAP protocol reverse-engineering)
 
