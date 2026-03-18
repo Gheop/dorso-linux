@@ -7,9 +7,9 @@ Uses your webcam to detect slouching in real-time and overlays a progressive red
 ## Screenshots
 
 <p align="center">
-  <img src="assets/screenshot-calibration.png" width="260" alt="Calibration">
-  <img src="assets/screenshot-settings.png" width="260" alt="Settings">
-  <img src="assets/screenshot-analytics.png" width="260" alt="Analytics">
+  <img src="https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/screenshot-calibration.png" width="260" alt="Calibration">
+  <img src="https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/screenshot-settings.png" width="260" alt="Settings">
+  <img src="https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/screenshot-analytics.png" width="260" alt="Analytics">
 </p>
 
 ## Features
