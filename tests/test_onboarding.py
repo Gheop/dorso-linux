@@ -27,6 +27,15 @@ pytestmark = pytest.mark.skipif(not _HAS_DISPLAY, reason="No display available (
 
 
 @pytest.fixture
+def fake_hub():
+    """A mock CameraHub."""
+    hub = MagicMock()
+    hub.is_available.return_value = True
+    hub.dev_path = "/dev/video0"
+    return hub
+
+
+@pytest.fixture
 def fake_detector():
     """A mock detector that doesn't touch any camera."""
     detector = MagicMock()
@@ -35,7 +44,7 @@ def fake_detector():
 
 
 @pytest.fixture
-def onboarding(fake_detector):
+def onboarding(fake_hub, fake_detector):
     """Create an OnboardingWindow with mocked camera preview."""
     from dorso.onboarding import OnboardingWindow
 
@@ -43,8 +52,8 @@ def onboarding(fake_detector):
 
     with patch.object(OnboardingWindow, "_start_preview"):
         win = OnboardingWindow(
+            hub=fake_hub,
             detector=fake_detector,
-            camera_id=0,
             on_complete=on_complete,
         )
     return win, on_complete

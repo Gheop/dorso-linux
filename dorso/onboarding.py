@@ -4,18 +4,20 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from typing import Callable
 
 import cv2
 import gi
+import numpy as np
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GLib, Gtk
 
-from dorso.camera_detector import CameraDetector
+from dorso.camera_detector import CameraDetector, _model_path
+from dorso.camera_hub import CameraHub
 from dorso.i18n import _
+from dorso.landmark_overlay import detect_and_draw
 from dorso.models import CalibrationData
 
 logger = logging.getLogger(__name__)
@@ -26,15 +28,16 @@ class OnboardingWindow:
 
     def __init__(
         self,
+        hub: CameraHub,
         detector: CameraDetector,
-        camera_id: int,
         on_complete: Callable[[CalibrationData | None], None],
     ) -> None:
+        self._hub = hub
         self._detector = detector
-        self._camera_id = camera_id
         self._on_complete = on_complete
-        self._preview_running = False
-        self._preview_thread: threading.Thread | None = None
+        self._preview_subscribed = False
+        self._landmarker = None
+        self._landmarker_lock = threading.Lock()
 
         self._window = Gtk.Window(title="Dorso")
         self._window.set_default_size(500, 420)
@@ -195,46 +198,49 @@ class OnboardingWindow:
         self._stop_preview()
         self._stack.set_visible_child_name("done")
 
-    # -- Camera preview --
+    # -- Camera preview via hub --
 
     def _start_preview(self) -> None:
-        self._preview_running = True
-        self._preview_thread = threading.Thread(target=self._preview_loop, daemon=True)
-        self._preview_thread.start()
+        self._ensure_landmarker()
+        self._preview_subscribed = True
+        self._hub.subscribe("onboarding_preview", self._on_preview_frame, fps=15.0)
 
     def _stop_preview(self) -> None:
-        self._preview_running = False
-        if self._preview_thread:
-            self._preview_thread.join(timeout=2.0)
-            self._preview_thread = None
+        if self._preview_subscribed:
+            self._hub.unsubscribe("onboarding_preview")
+            self._preview_subscribed = False
+        with self._landmarker_lock:
+            if self._landmarker:
+                self._landmarker.close()
+                self._landmarker = None
 
-    def _preview_loop(self) -> None:
-        cap = cv2.VideoCapture(self._camera_id)
-        if not cap.isOpened():
-            GLib.idle_add(self._show_camera_error)
+    def _ensure_landmarker(self) -> None:
+        if self._landmarker is not None:
             return
-
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-
         try:
-            while self._preview_running:
-                ret, frame = cap.read()
-                if not ret:
-                    time.sleep(0.05)
-                    continue
+            from mediapipe.tasks.python import vision
+            from mediapipe.tasks.python.core import base_options as bo
 
-                # Mirror horizontally for natural feel
-                frame = cv2.flip(frame, 1)
-                # BGR → RGB
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                h, w, c = frame.shape
-                data = frame.tobytes()
+            model = _model_path()
+            options = vision.PoseLandmarkerOptions(
+                base_options=bo.BaseOptions(model_asset_path=str(model)),
+                running_mode=vision.RunningMode.IMAGE,
+                num_poses=1,
+            )
+            self._landmarker = vision.PoseLandmarker.create_from_options(options)
+        except Exception:
+            self._landmarker = None
 
-                GLib.idle_add(self._update_preview, data, w, h)
-                time.sleep(1 / 15)  # ~15 fps
-        finally:
-            cap.release()
+    def _on_preview_frame(self, frame: np.ndarray) -> None:
+        """Called from hub thread — draw landmarks, flip, convert, dispatch."""
+        frame = cv2.flip(frame, 1)
+        with self._landmarker_lock:
+            if self._landmarker:
+                frame = detect_and_draw(self._landmarker, frame)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, _ = frame.shape
+        data = frame.tobytes()
+        GLib.idle_add(self._update_preview, data, w, h)
 
     def _update_preview(self, data: bytes, w: int, h: int) -> bool:
         try:

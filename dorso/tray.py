@@ -201,6 +201,16 @@ class TrayIcon:
         if self._bus and self._sni_reg_id:
             try:
                 self._bus.emit_signal(None, SNI_PATH, SNI_INTERFACE, "NewIcon", None)
+                self._bus.emit_signal(
+                    None, SNI_PATH,
+                    "org.freedesktop.DBus.Properties",
+                    "PropertiesChanged",
+                    GLib.Variant("(sa{sv}as)", (
+                        SNI_INTERFACE,
+                        {"IconName": GLib.Variant("s", f"dorso-{state}")},
+                        [],
+                    )),
+                )
             except Exception:
                 pass
             # Update menu revision so status line refreshes

@@ -14,6 +14,7 @@ from dorso.analytics import Analytics
 from dorso.analytics_window import AnalyticsWindow
 from dorso.calibration import CalibrationDialog
 from dorso.camera_detector import CameraDetector
+from dorso.camera_hub import CameraHub
 from dorso.models import AppState, CalibrationData, PostureReading
 from dorso.onboarding import OnboardingWindow
 from dorso.overlay import OverlayManager
@@ -36,6 +37,7 @@ class DorsoApp(Gtk.Application):
         self._analytics = Analytics()
         self._state = AppState.DISABLED
         self._engine_state = MonitoringState()
+        self._hub: CameraHub | None = None
         self._detector: CameraDetector | None = None
         self._overlay: OverlayManager | None = None
         self._tray: TrayIcon | None = None
@@ -43,6 +45,8 @@ class DorsoApp(Gtk.Application):
         self._screen_locked = False
         self._settings_window: SettingsWindow | None = None
         self._analytics_window: AnalyticsWindow | None = None
+        self._calibration_dialog: CalibrationDialog | None = None
+        self._onboarding: OnboardingWindow | None = None
         self._was_slouching = False
 
     def do_activate(self) -> None:
@@ -54,9 +58,10 @@ class DorsoApp(Gtk.Application):
         self._overlay.set_warning_mode(self._settings.warning_mode)
         self._overlay.set_color(self._settings.warning_color)
 
-        # Camera detector
+        # Camera hub + detector
+        self._hub = CameraHub(f"/dev/video{self._settings.camera_id}")
         self._detector = CameraDetector(
-            camera_id=self._settings.camera_id,
+            hub=self._hub,
             sensitivity=self._settings.slouch_sensitivity,
         )
         self._detector.on_reading = self._on_posture_reading
@@ -85,7 +90,7 @@ class DorsoApp(Gtk.Application):
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, self._on_quit)
 
         # Start
-        if not self._detector.is_available():
+        if not self._hub.is_available():
             logger.error("No camera available (camera_id=%s)", self._settings.camera_id)
             self._update_state(AppState.PAUSED)
             return
@@ -133,11 +138,11 @@ class DorsoApp(Gtk.Application):
 
     def _start_onboarding(self) -> None:
         self._update_state(AppState.CALIBRATING)
-        if self._detector is None:
+        if self._detector is None or self._hub is None:
             return
         self._onboarding = OnboardingWindow(
+            hub=self._hub,
             detector=self._detector,
-            camera_id=self._settings.camera_id,
             on_complete=self._on_onboarding_complete,
         )
         self._onboarding.show()
@@ -150,21 +155,31 @@ class DorsoApp(Gtk.Application):
     # -- Calibration --
 
     def _start_calibration(self) -> None:
-        if self._state == AppState.MONITORING:
-            self._stop_monitoring()
-        self._update_state(AppState.CALIBRATING)
-        if self._detector is None:
+        # If calibration already open, just focus it
+        if self._calibration_dialog is not None:
+            self._calibration_dialog.present()
             return
-        dialog = CalibrationDialog(
+        self._update_state(AppState.CALIBRATING)
+        if self._detector is None or self._hub is None:
+            return
+        self._calibration_dialog = CalibrationDialog(
+            hub=self._hub,
             detector=self._detector,
             on_complete=self._on_calibration_complete,
         )
-        dialog.show()
+        self._calibration_dialog.show()
 
     def _on_calibration_complete(self, data: CalibrationData | None) -> None:
+        self._calibration_dialog = None
         if data is None or not data.is_valid:
             logger.warning("Calibration failed or cancelled")
-            self._update_state(AppState.PAUSED)
+            # Resume monitoring with previous calibration if available
+            if self._settings.calibration and self._settings.calibration.is_valid:
+                if self._detector:
+                    self._detector.calibration = self._settings.calibration
+                self._start_monitoring()
+            else:
+                self._update_state(AppState.PAUSED)
             return
         self._settings.calibration = data
         self._settings.save()
@@ -280,22 +295,37 @@ class DorsoApp(Gtk.Application):
         GLib.idle_add(self._show_settings)
 
     def _show_settings(self) -> bool:
+        if self._hub is None:
+            return False
         self._settings_window = SettingsWindow(
+            hub=self._hub,
             settings=self._settings,
             on_changed=self._on_settings_changed,
             on_recalibrate=lambda: GLib.idle_add(self._start_calibration),
+            on_close=self._on_settings_closed,
         )
         self._settings_window.show()
         return False
 
+    def _on_settings_closed(self) -> None:
+        """Clean up when settings window closes."""
+        self._settings_window = None
+
     def _on_settings_changed(self, settings: Settings) -> None:
+        old_camera_id = self._settings.camera_id
         self._settings = settings
         if self._overlay:
             self._overlay.set_warning_mode(settings.warning_mode)
             self._overlay.set_color(settings.warning_color)
         if self._detector:
-            self._detector._sensitivity = settings.slouch_sensitivity
-            if self._state == AppState.MONITORING:
+            self._detector.sensitivity = settings.slouch_sensitivity
+            if settings.camera_id != old_camera_id:
+                logger.info("Camera changed: /dev/video%d → /dev/video%d",
+                            old_camera_id, settings.camera_id)
+                if self._hub:
+                    self._hub.set_device(f"/dev/video{settings.camera_id}")
+                self._start_calibration()
+            elif self._state == AppState.MONITORING:
                 self._detector.set_interval(settings.detection_mode.base_interval)
         logger.info("Settings updated: mode=%s, intensity=%.1f",
                      settings.warning_mode.value, settings.intensity)
@@ -318,6 +348,8 @@ class DorsoApp(Gtk.Application):
 
     def _handle_quit(self) -> bool:
         self._stop_monitoring()
+        if self._hub:
+            self._hub.shutdown()
         if self._tray:
             self._tray.stop()
         if self._overlay:

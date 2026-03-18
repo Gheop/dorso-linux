@@ -7,14 +7,19 @@ import shutil
 from pathlib import Path
 from typing import Callable
 
+import cv2
 import gi
+import numpy as np
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gdk, Gtk
+gi.require_version("Gdk", "4.0")
+from gi.repository import Gdk, GLib, Gtk
 
+from dorso.camera_hub import CameraHub
 from dorso.i18n import _
 from dorso.models import DetectionMode, WarningMode
 from dorso.settings import Settings
+from dorso.v4l2_cameras import list_cameras
 
 
 def _autostart_path() -> Path:
@@ -35,18 +40,23 @@ class SettingsWindow:
 
     def __init__(
         self,
+        hub: CameraHub,
         settings: Settings,
         on_changed: Callable[[Settings], None],
         on_recalibrate: Callable[[], None] | None = None,
+        on_close: Callable[[], None] | None = None,
     ) -> None:
+        self._hub = hub
         self._settings = settings
         self._on_changed = on_changed
         self._on_recalibrate = on_recalibrate
+        self._on_close_cb = on_close
         self._updating = False
+        self._preview_subscribed = False
 
         self._window = Gtk.Window(title=_("Dorso — Settings"))
-        self._window.set_default_size(440, 520)
-        self._window.set_resizable(False)
+        self._window.set_default_size(440, 800)
+        self._window.set_resizable(True)
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -173,18 +183,48 @@ class SettingsWindow:
             self._det_buttons.append(btn)
         main_box.append(det_box)
 
-        # Camera ID
+        # ---- Camera ----
+        main_box.append(Gtk.Separator())
+        cam_heading = Gtk.Label(label=_("Camera"))
+        cam_heading.add_css_class("heading")
+        cam_heading.set_halign(Gtk.Align.START)
+        main_box.append(cam_heading)
+
         cam_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        cam_row.set_margin_top(8)
-        cam_label = Gtk.Label(label=_("Camera"))
-        cam_label.set_hexpand(True)
-        cam_label.set_halign(Gtk.Align.START)
-        cam_row.append(cam_label)
-        self._camera_spin = Gtk.SpinButton.new_with_range(0, 10, 1)
-        self._camera_spin.set_value(settings.camera_id)
-        self._camera_spin.connect("value-changed", self._on_value_changed)
-        cam_row.append(self._camera_spin)
+
+        self._camera_dropdown = Gtk.DropDown()
+        self._camera_dropdown.set_hexpand(True)
+        self._camera_map: list[int] = []
+        self._populate_camera_dropdown(settings.camera_id)
+        self._camera_dropdown.connect("notify::selected", self._on_camera_changed)
+        cam_row.append(self._camera_dropdown)
+
+        refresh_btn = Gtk.Button()
+        refresh_btn.set_child(Gtk.Image.new_from_icon_name("view-refresh-symbolic"))
+        refresh_btn.set_tooltip_text(_("Refresh camera list"))
+        refresh_btn.connect("clicked", lambda b: self._populate_camera_dropdown(
+            self._camera_map[self._camera_dropdown.get_selected()]
+            if self._camera_dropdown.get_selected() < len(self._camera_map)
+            else self._settings.camera_id
+        ))
+        cam_row.append(refresh_btn)
+
         main_box.append(cam_row)
+
+        # Camera preview
+        frame = Gtk.Frame()
+        self._cam_preview = Gtk.Picture()
+        self._cam_preview.set_size_request(200, 150)
+        self._cam_preview.set_content_fit(Gtk.ContentFit.CONTAIN)
+        frame.set_child(self._cam_preview)
+        frame.set_halign(Gtk.Align.CENTER)
+        self._cam_preview_frame = frame
+        frame.set_visible(False)
+        main_box.append(frame)
+
+        # Start preview via hub
+        if self._camera_map:
+            self._start_camera_preview()
 
         # ---- Autostart ----
         main_box.append(Gtk.Separator())
@@ -214,9 +254,16 @@ class SettingsWindow:
 
         scroll.set_child(main_box)
         self._window.set_child(scroll)
+        self._window.connect("close-request", self._on_close)
 
     def show(self) -> None:
         self._window.set_visible(True)
+
+    def _on_close(self, window: Gtk.Window) -> bool:
+        self._stop_camera_preview()
+        if self._on_close_cb:
+            self._on_close_cb()
+        return False
 
     def _add_slider_row(
         self, parent: Gtk.Box, label: str,
@@ -248,6 +295,77 @@ class SettingsWindow:
 
         parent.append(row)
         return scale, val_label
+
+    def _populate_camera_dropdown(self, current_id: int) -> None:
+        """Scan V4L2 devices and rebuild the dropdown model."""
+        self._updating = True
+        cameras = list_cameras()
+
+        labels: list[str] = []
+        self._camera_map = []
+        selected_pos = 0
+
+        if cameras:
+            for i, (dev_id, name) in enumerate(cameras):
+                labels.append(name)
+                self._camera_map.append(dev_id)
+                if dev_id == current_id:
+                    selected_pos = i
+            # If saved camera_id was not found, add it as unavailable
+            if current_id not in self._camera_map:
+                labels.append(_("Camera %d (unavailable)") % current_id)
+                self._camera_map.append(current_id)
+                selected_pos = len(labels) - 1
+        else:
+            labels.append(_("No camera detected"))
+            self._camera_map.append(current_id)
+
+        model = Gtk.StringList.new(labels)
+        self._camera_dropdown.set_model(model)
+        self._camera_dropdown.set_selected(selected_pos)
+        self._updating = False
+
+    def _on_camera_changed(self, dropdown, pspec) -> None:
+        if self._updating:
+            return
+        selected = self._camera_dropdown.get_selected()
+        if selected < len(self._camera_map):
+            new_dev = f"/dev/video{self._camera_map[selected]}"
+            self._hub.set_device(new_dev)
+        self._apply()
+
+    # -- Camera preview via hub --
+
+    def _start_camera_preview(self) -> None:
+        """Subscribe to hub for live preview frames."""
+        self._stop_camera_preview()
+        self._cam_preview_frame.set_visible(True)
+        self._preview_subscribed = True
+        self._hub.subscribe("settings_preview", self._on_preview_frame, fps=10.0)
+
+    def _stop_camera_preview(self) -> None:
+        if self._preview_subscribed:
+            self._hub.unsubscribe("settings_preview")
+            self._preview_subscribed = False
+
+    def _on_preview_frame(self, frame: np.ndarray) -> None:
+        """Called from hub thread — flip, convert, dispatch to GTK."""
+        frame = cv2.flip(frame, 1)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, _ = frame.shape
+        data = frame.tobytes()
+        GLib.idle_add(self._update_preview, data, w, h)
+
+    def _update_preview(self, data: bytes, w: int, h: int) -> bool:
+        try:
+            gbytes = GLib.Bytes.new(data)
+            texture = Gdk.MemoryTexture.new(
+                w, h, Gdk.MemoryFormat.R8G8B8, gbytes, w * 3
+            )
+            self._cam_preview.set_paintable(texture)
+        except Exception:
+            pass
+        return False
 
     def _on_mode_toggled(self, btn: Gtk.ToggleButton) -> None:
         if self._updating:
@@ -304,7 +422,9 @@ class SettingsWindow:
         self._settings.intensity = round(self._intensity_scale.get_value(), 2)
         self._settings.slouch_sensitivity = round(self._sensitivity_scale.get_value(), 3)
         self._settings.warning_onset_delay = round(self._delay_scale.get_value(), 1)
-        self._settings.camera_id = int(self._camera_spin.get_value())
+        selected = self._camera_dropdown.get_selected()
+        if selected < len(self._camera_map):
+            self._settings.camera_id = self._camera_map[selected]
         rgba = self._color_btn.get_rgba()
         self._settings.warning_color = (
             round(rgba.red, 3), round(rgba.green, 3), round(rgba.blue, 3)

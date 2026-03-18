@@ -7,7 +7,7 @@ Skipped automatically if no display is available.
 from __future__ import annotations
 
 import shutil
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,14 +36,24 @@ def settings_env(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def settings_window(settings_env):
+def fake_hub():
+    """Create a mock CameraHub."""
+    hub = MagicMock()
+    hub.is_available.return_value = True
+    hub.dev_path = "/dev/video0"
+    return hub
+
+
+@pytest.fixture
+def settings_window(settings_env, fake_hub):
     """Create a SettingsWindow with default settings."""
     from dorso.settings import Settings
     from dorso.settings_window import SettingsWindow
 
     settings = Settings()
     on_changed = MagicMock()
-    win = SettingsWindow(settings=settings, on_changed=on_changed)
+    with patch("dorso.settings_window.list_cameras", return_value=[(0, "Fake Webcam"), (2, "USB Camera")]):
+        win = SettingsWindow(hub=fake_hub, settings=settings, on_changed=on_changed)
     return win, settings, on_changed
 
 
@@ -139,3 +149,52 @@ class TestModeChange:
         assert on_changed.called
         called_settings = on_changed.call_args[0][0]
         assert called_settings.detection_mode == DetectionMode.PERFORMANCE
+
+
+class TestCameraDropdown:
+    def test_dropdown_has_detected_cameras(self, settings_window):
+        """Dropdown should list cameras returned by list_cameras."""
+        win, _, _ = settings_window
+        model = win._camera_dropdown.get_model()
+        assert model.get_n_items() == 2
+        assert model.get_string(0) == "Fake Webcam"
+        assert model.get_string(1) == "USB Camera"
+
+    def test_camera_map_matches(self, settings_window):
+        """camera_map should contain device indices."""
+        win, _, _ = settings_window
+        assert win._camera_map == [0, 2]
+
+    def test_default_camera_selected(self, settings_window):
+        """Camera 0 (default) should be selected."""
+        win, _, _ = settings_window
+        assert win._camera_dropdown.get_selected() == 0
+
+    def test_no_cameras(self, settings_env, fake_hub):
+        """With no cameras, dropdown shows 'No camera detected'."""
+        from dorso.settings import Settings
+        from dorso.settings_window import SettingsWindow
+
+        settings = Settings()
+        on_changed = MagicMock()
+        with patch("dorso.settings_window.list_cameras", return_value=[]):
+            win = SettingsWindow(hub=fake_hub, settings=settings, on_changed=on_changed)
+
+        model = win._camera_dropdown.get_model()
+        assert model.get_n_items() == 1
+
+    def test_saved_camera_unavailable(self, settings_env, fake_hub):
+        """Saved camera_id not in detected list shows as unavailable."""
+        from dorso.settings import Settings
+        from dorso.settings_window import SettingsWindow
+
+        settings = Settings(camera_id=5)
+        on_changed = MagicMock()
+        with patch("dorso.settings_window.list_cameras", return_value=[(0, "Webcam")]):
+            win = SettingsWindow(hub=fake_hub, settings=settings, on_changed=on_changed)
+
+        model = win._camera_dropdown.get_model()
+        assert model.get_n_items() == 2
+        # Camera 5 should be selected (the unavailable one)
+        assert win._camera_dropdown.get_selected() == 1
+        assert win._camera_map[1] == 5

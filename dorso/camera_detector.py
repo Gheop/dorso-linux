@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
 import threading
 import time
 import urllib.request
@@ -17,6 +18,7 @@ import numpy as np
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.core import base_options as bo
 
+from dorso.camera_hub import CameraHub
 from dorso.detector import PostureDetector
 from dorso.models import CalibrationData, PostureReading
 
@@ -50,18 +52,21 @@ def _model_path() -> Path:
 
 
 class CameraDetector(PostureDetector):
-    """Detects posture via webcam using MediaPipe PoseLandmarker."""
+    """Detects posture via webcam using MediaPipe PoseLandmarker.
 
-    def __init__(self, camera_id: int = 0, sensitivity: float = 0.03) -> None:
+    Receives frames from a CameraHub instead of owning a VideoCapture.
+    """
+
+    def __init__(self, hub: CameraHub, sensitivity: float = 0.03) -> None:
         super().__init__()
-        self._camera_id = camera_id
+        self._hub = hub
         self._sensitivity = sensitivity
         self._calibration: CalibrationData | None = None
-        self._capture: cv2.VideoCapture | None = None
-        self._thread: threading.Thread | None = None
-        self._running = False
         self._interval = 0.25
+        self._running = False
         self._smoothing_window: deque[float] = deque(maxlen=5)
+        self._landmarker: vision.PoseLandmarker | None = None
+        self._landmarker_lock = threading.Lock()
 
     @property
     def calibration(self) -> CalibrationData | None:
@@ -71,39 +76,53 @@ class CameraDetector(PostureDetector):
     def calibration(self, data: CalibrationData | None) -> None:
         self._calibration = data
 
+    @property
+    def sensitivity(self) -> float:
+        return self._sensitivity
+
+    @sensitivity.setter
+    def sensitivity(self, value: float) -> None:
+        self._sensitivity = value
+
     def start(self) -> None:
         if self._running:
             return
+        self._ensure_landmarker()
         self._running = True
-        self._thread = threading.Thread(target=self._capture_loop, daemon=True)
-        self._thread.start()
+        fps = 1.0 / self._interval if self._interval > 0 else 4.0
+        self._hub.subscribe("detector", self._on_frame, fps=fps)
 
     def stop(self) -> None:
+        if not self._running:
+            return
         self._running = False
-        if self._thread:
-            self._thread.join(timeout=2.0)
-            self._thread = None
+        self._hub.unsubscribe("detector")
 
     def is_available(self) -> bool:
-        try:
-            cap = cv2.VideoCapture(self._camera_id)
-            ok = cap.isOpened()
-            cap.release()
-            return ok
-        except Exception:
-            return False
+        return self._hub.is_available()
 
     def is_active(self) -> bool:
         return self._running
 
     def set_interval(self, interval: float) -> None:
         self._interval = interval
+        if self._running:
+            fps = 1.0 / interval if interval > 0 else 4.0
+            self._hub.subscribe("detector", self._on_frame, fps=fps)
 
     def calibrate(self, on_complete: Callable[[CalibrationData | None], None]) -> None:
         thread = threading.Thread(
             target=self._calibrate_worker, args=(on_complete,), daemon=True
         )
         thread.start()
+
+    def _ensure_landmarker(self) -> None:
+        with self._landmarker_lock:
+            if self._landmarker is None:
+                try:
+                    self._landmarker = self._create_landmarker()
+                except Exception as e:
+                    logger.error("Failed to create pose landmarker: %s", e)
 
     def _create_landmarker(self) -> vision.PoseLandmarker:
         """Create a PoseLandmarker instance."""
@@ -117,23 +136,35 @@ class CameraDetector(PostureDetector):
         )
         return vision.PoseLandmarker.create_from_options(options)
 
-    def _calibrate_worker(self, on_complete: Callable[[CalibrationData | None], None]) -> None:
-        cap = cv2.VideoCapture(self._camera_id)
-        if not cap.isOpened():
-            logger.error("Cannot open camera %s for calibration", self._camera_id)
-            on_complete(None)
+    def _on_frame(self, frame: np.ndarray) -> None:
+        """Called by CameraHub with each frame."""
+        if not self._running:
             return
+        with self._landmarker_lock:
+            if self._landmarker is None:
+                return
+            reading = self._process_frame(self._landmarker, frame)
+        if self.on_reading:
+            self.on_reading(reading)
 
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-
+    def _calibrate_worker(self, on_complete: Callable[[CalibrationData | None], None]) -> None:
+        """Collect calibration samples via hub subscription."""
         try:
             landmarker = self._create_landmarker()
         except Exception as e:
-            logger.error("Failed to create pose landmarker: %s", e)
-            cap.release()
+            logger.error("Failed to create pose landmarker for calibration: %s", e)
             on_complete(None)
             return
+
+        frame_queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=5)
+
+        def on_cal_frame(frame: np.ndarray) -> None:
+            try:
+                frame_queue.put_nowait(frame)
+            except queue.Full:
+                pass
+
+        self._hub.subscribe("calibration", on_cal_frame, fps=10.0)
 
         nose_ys: list[float] = []
         face_widths: list[float] = []
@@ -144,17 +175,15 @@ class CameraDetector(PostureDetector):
                 if len(nose_ys) >= target_samples:
                     break
 
-                ret, frame = cap.read()
-                if not ret:
-                    time.sleep(0.05)
+                try:
+                    frame = frame_queue.get(timeout=1.0)
+                except queue.Empty:
                     continue
 
                 nose_y, face_w = self._extract_landmarks(landmarker, frame)
                 if nose_y is not None and face_w is not None:
                     nose_ys.append(nose_y)
                     face_widths.append(face_w)
-
-                time.sleep(0.1)
 
             if len(nose_ys) < 10:
                 logger.warning("Calibration failed: only %d samples", len(nose_ys))
@@ -174,45 +203,7 @@ class CameraDetector(PostureDetector):
 
         finally:
             landmarker.close()
-            cap.release()
-
-    def _capture_loop(self) -> None:
-        """Main detection loop running in a background thread."""
-        self._capture = cv2.VideoCapture(self._camera_id)
-        if not self._capture.isOpened():
-            logger.error("Cannot open camera %s", self._camera_id)
-            self._running = False
-            return
-
-        self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-
-        try:
-            landmarker = self._create_landmarker()
-        except Exception as e:
-            logger.error("Failed to create pose landmarker: %s", e)
-            self._running = False
-            if self._capture:
-                self._capture.release()
-            return
-
-        try:
-            while self._running:
-                ret, frame = self._capture.read()
-                if not ret:
-                    time.sleep(0.1)
-                    continue
-
-                reading = self._process_frame(landmarker, frame)
-                if self.on_reading:
-                    self.on_reading(reading)
-
-                time.sleep(self._interval)
-        finally:
-            landmarker.close()
-            if self._capture:
-                self._capture.release()
-                self._capture = None
+            self._hub.unsubscribe("calibration")
 
     def _process_frame(self, landmarker: vision.PoseLandmarker, frame: np.ndarray) -> PostureReading:
         """Analyze a single frame and produce a PostureReading."""

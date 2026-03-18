@@ -7,8 +7,9 @@ Uses your webcam to detect slouching in real-time and overlays a progressive red
 ## Screenshots
 
 <p align="center">
-  <img src="assets/screenshot-settings.png" width="380" alt="Settings">
-  <img src="assets/screenshot-analytics.png" width="380" alt="Analytics">
+  <img src="assets/screenshot-calibration.png" width="260" alt="Calibration">
+  <img src="assets/screenshot-settings.png" width="260" alt="Settings">
+  <img src="assets/screenshot-analytics.png" width="260" alt="Analytics">
 </p>
 
 ## Features
@@ -56,7 +57,7 @@ pip install -e .
 python -m dorso
 ```
 
-On first launch, a calibration window appears. Sit in your best posture and click **Calibrer**. Monitoring starts automatically after calibration.
+On first launch, a calibration window appears. Sit in your best posture and click **Calibrate**. Monitoring starts automatically after calibration.
 
 When you slouch, a red glow appears on the edges of your screen. Sit straight and it fades away.
 
@@ -65,15 +66,15 @@ When you slouch, a red glow appears on the edges of your screen. Sit straight an
 The tray icon shows your current posture status (green/red/grey). Click the icon to access:
 
 - **Status** — current posture state
-- **Activer/Désactiver** — toggle monitoring
-- **Recalibrer** — redo posture calibration
-- **Analytiques** — open the analytics dashboard
-- **Paramètres** — open settings
-- **Quitter** — exit
+- **Toggle** — toggle monitoring
+- **Recalibrate** — redo posture calibration
+- **Analytics** — open the analytics dashboard
+- **Settings** — open settings
+- **Quit** — exit
 
 ### Autostart
 
-Toggle "Lancer au démarrage" in settings, or manually:
+Toggle "Launch at startup" in settings, or manually:
 
 ```bash
 ./scripts/install-autostart.sh
@@ -113,12 +114,12 @@ camera_id = 0                 # camera device index
 ## Architecture
 
 ```
-Camera (OpenCV) → Detector (MediaPipe) → PostureEngine (pure logic) → Overlay (GTK4)
-                                                                     → Tray (D-Bus SNI)
-                                                                     → Analytics (JSON)
+CameraHub (OpenCV) → Detector (MediaPipe) → PostureEngine → Overlay (GTK4)
+                   → Settings preview                      → Tray (D-Bus SNI)
+                   → Calibration preview                   → Analytics (JSON)
 ```
 
-The posture engine is a pure function with no side effects — takes state + reading, returns new state + effects. Fully testable.
+The CameraHub shares a single camera capture across all consumers (detector, settings preview, calibration preview). The posture engine is a pure function with no side effects — takes state + reading, returns new state + effects. Fully testable.
 
 ### GNOME Shell extension (recommended for GNOME)
 
