@@ -48,6 +48,12 @@ sudo apt install libgtk-4-dev python3-gi gir1.2-gtk-4.0
 ## Installation
 
 ```bash
+pip install dorso-linux
+```
+
+### From source
+
+```bash
 pip install -e .
 ```
 
