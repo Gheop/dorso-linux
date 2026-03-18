@@ -51,7 +51,13 @@ sudo apt install libgtk-4-dev python3-gi gir1.2-gtk-4.0
 pip install dorso-linux
 ```
 
-For the best experience on **GNOME Wayland**, also install the [GNOME Shell extension](https://extensions.gnome.org/extension/7608/dorso-overlay/) (multi-monitor, always-on-top overlay).
+For the best experience on **GNOME Wayland**, also install the GNOME Shell extension (multi-monitor, always-on-top overlay):
+
+```bash
+./scripts/install-extension.sh
+# Log out / log in, then:
+gnome-extensions enable dorso-overlay@dorso-linux
+```
 
 ### From source
 
