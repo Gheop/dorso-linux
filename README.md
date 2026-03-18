@@ -152,7 +152,7 @@ If you've done reverse-engineering work on the AAP protocol or know how to acces
 - [x] Publish on PyPI (`pip install dorso-linux`)
 - [x] Publish GNOME Shell extension on extensions.gnome.org
 - [ ] AirPods motion sensor support (blocked — Apple AAP protocol encrypted, see [LibrePods](https://github.com/kavishdevar/librepods) for current state)
-- [ ] Flatpak packaging (Flathub)
+- [ ] Flatpak packaging (Flathub) — build works, sandbox issues with tray icon & screen lock
 
 ## Tests
 
