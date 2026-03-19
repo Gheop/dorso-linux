@@ -30,7 +30,26 @@ try:
 
     _layer_shell_available = True
 except (ValueError, ImportError):
-    pass
+    # Try loading the shared library directly (works without LD_PRELOAD)
+    import ctypes
+    import glob as _glob
+
+    for _pattern in (
+        "/usr/lib64/libgtk4-layer-shell.so*",
+        "/usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so*",
+        "/usr/lib/libgtk4-layer-shell.so*",
+    ):
+        _matches = _glob.glob(_pattern)
+        if _matches:
+            try:
+                ctypes.cdll.LoadLibrary(_matches[0])
+                gi.require_version("Gtk4LayerShell", "1.0")
+                from gi.repository import Gtk4LayerShell
+
+                _layer_shell_available = True
+            except (OSError, ValueError, ImportError):
+                pass
+            break
 
 DEFAULT_WARNING_COLOR = (0.9, 0.2, 0.1)
 
