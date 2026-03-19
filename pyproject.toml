@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "dorso-linux"
 version = "0.1.1"
 description = "Posture monitoring tool for Linux — webcam slouch detection with screen overlay"
-readme = "README.md"
+readme = "PYPI_README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
