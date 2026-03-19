@@ -1,16 +1,18 @@
 """Entry point: python -m dorso"""
 
-import logging
 import os
+
+# Suppress noisy native warnings from MediaPipe/TFLite/absl/Mesa.
+# Must be set before any import that loads the native libraries.
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = os.environ.get("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ["GLOG_minloglevel"] = os.environ.get("GLOG_minloglevel", "2")
+os.environ["MESA_LOG_LEVEL"] = os.environ.get("MESA_LOG_LEVEL", "error")
+
+import logging
 import sys
 
 
 def main() -> None:
-    # Suppress noisy third-party warnings (MediaPipe/TFLite/absl/Mesa)
-    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-    os.environ.setdefault("GLOG_minloglevel", "2")
-    os.environ.setdefault("MESA_LOG_LEVEL", "error")
-
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
