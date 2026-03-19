@@ -187,9 +187,9 @@ class TestErrorHandling:
             hub.shutdown()
 
 
-class TestFrameCopy:
-    def test_each_subscriber_gets_copy(self, fake_capture):
-        """Subscribers should get independent frame copies."""
+class TestFrameSharing:
+    def test_subscribers_share_same_frame(self, fake_capture):
+        """Subscribers receive the same frame object (zero-copy)."""
         hub = CameraHub("/dev/video0")
         frames_a = []
         frames_b = []
@@ -212,6 +212,4 @@ class TestFrameCopy:
         hub.shutdown()
 
         if frames_a and frames_b:
-            # Modify one — shouldn't affect the other
-            frames_a[0][0, 0, 0] = 255
-            assert frames_b[0][0, 0, 0] != 255 or not np.array_equal(frames_a[0], frames_b[0])
+            assert frames_a[0] is frames_b[0]

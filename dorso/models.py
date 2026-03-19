@@ -16,15 +16,6 @@ class AppState(Enum):
     PAUSED = auto()
 
 
-class PauseReason(Enum):
-    """Why monitoring is paused."""
-
-    NO_PROFILE = auto()
-    CAMERA_DISCONNECTED = auto()
-    SCREEN_LOCKED = auto()
-    USER_PAUSED = auto()
-
-
 class WarningMode(Enum):
     """Visual feedback style when slouching."""
 

@@ -38,6 +38,7 @@ class OnboardingWindow:
         self._preview_subscribed = False
         self._landmarker = None
         self._landmarker_lock = threading.Lock()
+        self._calibration_data: CalibrationData | None = None
 
         self._window = Gtk.Window(title="Dorso")
         self._window.set_default_size(500, 420)
@@ -297,7 +298,7 @@ class OnboardingWindow:
     # -- Finish / Cancel --
 
     def _on_finish(self, button: Gtk.Button) -> None:
-        self._close_and_complete(getattr(self, "_calibration_data", None))
+        self._close_and_complete(self._calibration_data)
 
     def _on_skip(self, button: Gtk.Button) -> None:
         self._close_and_complete(None)

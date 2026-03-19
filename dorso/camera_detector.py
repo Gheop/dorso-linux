@@ -13,10 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 import cv2
-import mediapipe as mp
 import numpy as np
-from mediapipe.tasks.python import vision
-from mediapipe.tasks.python.core import base_options as bo
 
 from dorso.camera_hub import CameraHub
 from dorso.detector import PostureDetector
@@ -24,12 +21,13 @@ from dorso.models import CalibrationData, PostureReading
 
 logger = logging.getLogger(__name__)
 
-# Landmark indices (same as PoseLandmark enum)
-_NOSE = 0
-_LEFT_EAR = 7
-_RIGHT_EAR = 8
-_LEFT_SHOULDER = 11
-_RIGHT_SHOULDER = 12
+from dorso.landmark_overlay import (
+    _LEFT_EAR,
+    _LEFT_SHOULDER,
+    _NOSE,
+    _RIGHT_EAR,
+    _RIGHT_SHOULDER,
+)
 
 _MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
 _MODEL_FILENAME = "pose_landmarker_lite.task"
@@ -65,7 +63,7 @@ class CameraDetector(PostureDetector):
         self._interval = 0.25
         self._running = False
         self._smoothing_window: deque[float] = deque(maxlen=5)
-        self._landmarker: vision.PoseLandmarker | None = None
+        self._landmarker = None
         self._landmarker_lock = threading.Lock()
 
     @property
@@ -75,6 +73,7 @@ class CameraDetector(PostureDetector):
     @calibration.setter
     def calibration(self, data: CalibrationData | None) -> None:
         self._calibration = data
+        self._smoothing_window.clear()
 
     @property
     def sensitivity(self) -> float:
@@ -97,6 +96,10 @@ class CameraDetector(PostureDetector):
             return
         self._running = False
         self._hub.unsubscribe("detector")
+        with self._landmarker_lock:
+            if self._landmarker is not None:
+                self._landmarker.close()
+                self._landmarker = None
 
     def is_available(self) -> bool:
         return self._hub.is_available()
@@ -124,8 +127,12 @@ class CameraDetector(PostureDetector):
                 except Exception as e:
                     logger.error("Failed to create pose landmarker: %s", e)
 
-    def _create_landmarker(self) -> vision.PoseLandmarker:
-        """Create a PoseLandmarker instance."""
+    @staticmethod
+    def _create_landmarker():
+        """Create a PoseLandmarker instance (lazy-imports mediapipe)."""
+        from mediapipe.tasks.python import vision
+        from mediapipe.tasks.python.core import base_options as bo
+
         model = _model_path()
         options = vision.PoseLandmarkerOptions(
             base_options=bo.BaseOptions(model_asset_path=str(model)),
@@ -205,7 +212,7 @@ class CameraDetector(PostureDetector):
             landmarker.close()
             self._hub.unsubscribe("calibration")
 
-    def _process_frame(self, landmarker: vision.PoseLandmarker, frame: np.ndarray) -> PostureReading:
+    def _process_frame(self, landmarker, frame: np.ndarray) -> PostureReading:
         """Analyze a single frame and produce a PostureReading."""
         now = time.time()
 
@@ -250,12 +257,14 @@ class CameraDetector(PostureDetector):
 
     @staticmethod
     def _extract_landmarks(
-        landmarker: vision.PoseLandmarker, frame: np.ndarray
+        landmarker, frame: np.ndarray
     ) -> tuple[float | None, float | None]:
         """Extract nose Y and face width from a frame.
 
         Returns (nose_y, face_width) normalized [0, 1], or (None, None).
         """
+        import mediapipe as mp
+
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 

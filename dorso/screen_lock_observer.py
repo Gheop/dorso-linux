@@ -15,6 +15,7 @@ class ScreenLockObserver:
     def __init__(self, on_lock_changed: Callable[[bool], None]) -> None:
         self._on_lock_changed = on_lock_changed
         self._bus = None
+        self._system_bus = None
 
     def start(self) -> None:
         try:
@@ -39,7 +40,7 @@ class ScreenLockObserver:
             )
 
             # logind Lock/Unlock (most universal)
-            system_bus = dbus.SystemBus()
+            system_bus = self._system_bus = dbus.SystemBus()
             session_path = self._get_session_path(system_bus)
             if session_path:
                 system_bus.add_signal_receiver(
@@ -61,6 +62,15 @@ class ScreenLockObserver:
             logger.warning("dbus-python not available, screen lock detection disabled")
         except Exception as e:
             logger.warning("Failed to start screen lock observer: %s", e)
+
+    def stop(self) -> None:
+        """Close D-Bus connections to unsubscribe signal handlers."""
+        if self._system_bus is not None:
+            self._system_bus.close()
+            self._system_bus = None
+        if self._bus is not None:
+            self._bus.close()
+            self._bus = None
 
     def _on_screensaver_changed(self, active: bool) -> None:
         self._on_lock_changed(bool(active))

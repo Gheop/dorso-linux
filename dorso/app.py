@@ -350,6 +350,8 @@ class DorsoApp(Gtk.Application):
         self._stop_monitoring()
         if self._hub:
             self._hub.shutdown()
+        if self._lock_observer:
+            self._lock_observer.stop()
         if self._tray:
             self._tray.stop()
         if self._overlay:

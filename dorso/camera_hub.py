@@ -19,6 +19,10 @@ class _Subscriber:
     callback: Callable[[np.ndarray], None]
     fps: float
     last_sent: float = 0.0
+    interval: float = 0.0
+
+    def __post_init__(self) -> None:
+        self.interval = 1.0 / self.fps if self.fps > 0 else 1.0
 
 
 class CameraHub:
@@ -133,11 +137,10 @@ class CameraHub:
                     subscribers = list(self._subscribers.items())
 
                 for name, sub in subscribers:
-                    interval = 1.0 / sub.fps if sub.fps > 0 else 1.0
-                    if now - sub.last_sent >= interval * 0.9:  # 10% tolerance
+                    if now - sub.last_sent >= sub.interval * 0.9:  # 10% tolerance
                         sub.last_sent = now
                         try:
-                            sub.callback(frame.copy())
+                            sub.callback(frame)
                         except Exception:
                             logger.exception("Hub: error in subscriber %s", name)
 

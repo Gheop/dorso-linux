@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import time
-from collections import deque
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
-from dorso.models import CalibrationData, PostureReading
+from dorso.models import CalibrationData
 
 
 @pytest.fixture
@@ -23,10 +21,8 @@ def mock_hub():
 @pytest.fixture
 def detector(mock_hub):
     """Create a CameraDetector with mocked landmarker creation."""
-    with patch("dorso.camera_detector._model_path", return_value="/fake/model.task"):
-        with patch("dorso.camera_detector.vision"):
-            from dorso.camera_detector import CameraDetector
-            det = CameraDetector(hub=mock_hub, sensitivity=0.03)
+    from dorso.camera_detector import CameraDetector
+    det = CameraDetector(hub=mock_hub, sensitivity=0.03)
     return det
 
 

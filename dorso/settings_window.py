@@ -7,9 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Callable
 
-import cv2
 import gi
-import numpy as np
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
@@ -348,8 +346,10 @@ class SettingsWindow:
             self._hub.unsubscribe("settings_preview")
             self._preview_subscribed = False
 
-    def _on_preview_frame(self, frame: np.ndarray) -> None:
+    def _on_preview_frame(self, frame) -> None:
         """Called from hub thread — flip, convert, dispatch to GTK."""
+        import cv2
+
         frame = cv2.flip(frame, 1)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, _ = frame.shape

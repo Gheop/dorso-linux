@@ -17,6 +17,8 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
+import cairo
+
 from gi.repository import Gdk, Gio, GLib, Gtk
 
 from dorso.models import WarningMode
@@ -65,8 +67,6 @@ def _use_layer_shell() -> bool:
 # ---------- Drawing primitives ----------
 
 def _draw_glow(cr, w: int, h: int, r: float, g: float, b: float, intensity: float) -> None:
-    import cairo
-
     cx, cy = w / 2, h / 2
     max_r = math.sqrt(cx ** 2 + cy ** 2)
     inner_r = max_r * (1.0 - intensity * 0.6)
@@ -81,8 +81,6 @@ def _draw_glow(cr, w: int, h: int, r: float, g: float, b: float, intensity: floa
 
 
 def _draw_border(cr, w: int, h: int, r: float, g: float, b: float, intensity: float) -> None:
-    import cairo
-
     border = int(min(w, h) * 0.08 * intensity)
     if border < 1:
         return
@@ -114,6 +112,22 @@ def _draw_solid(cr, w: int, h: int, r: float, g: float, b: float, intensity: flo
     cr.rectangle(0, 0, w, h)
     cr.fill()
 
+
+def _draw_overlay(cr, w: int, h: int, mode: WarningMode, color: tuple[float, float, float], intensity: float) -> None:
+    """Common draw routine for all overlay backends."""
+    cr.set_operator(cairo.OPERATOR_SOURCE)
+    cr.set_source_rgba(0, 0, 0, 0)
+    cr.paint()
+    cr.set_operator(cairo.OPERATOR_OVER)
+
+    if intensity > 0:
+        r, g, b = color
+        if mode == WarningMode.BORDER:
+            _draw_border(cr, w, h, r, g, b, intensity)
+        elif mode == WarningMode.SOLID:
+            _draw_solid(cr, w, h, r, g, b, intensity)
+        else:
+            _draw_glow(cr, w, h, r, g, b, intensity)
 
 
 # ---------- Transparent overlay window (works on GNOME Wayland + X11) ----------
@@ -164,10 +178,9 @@ class _TransparentOverlay(Gtk.Window):
         logger.info("Overlay: %s (%dx%d)", monitor.get_connector(), geo.width, geo.height)
 
     def _apply_passthrough(self, *args) -> bool:
-        import cairo as _c
         s = self.get_surface()
         if s:
-            s.set_input_region(_c.Region())
+            s.set_input_region(cairo.Region())
             logger.debug("passthrough applied")
         return False
 
@@ -193,20 +206,7 @@ class _TransparentOverlay(Gtk.Window):
             self._da.queue_draw()
 
     def _on_draw(self, area, cr, w, h):
-        import cairo
-        cr.set_operator(cairo.OPERATOR_SOURCE)
-        cr.set_source_rgba(0, 0, 0, 0)
-        cr.paint()
-        cr.set_operator(cairo.OPERATOR_OVER)
-
-        if self._intensity > 0:
-            r, g, b = self._color
-            if self._warning_mode == WarningMode.BORDER:
-                _draw_border(cr, w, h, r, g, b, self._intensity)
-            elif self._warning_mode == WarningMode.SOLID:
-                _draw_solid(cr, w, h, r, g, b, self._intensity)
-            else:
-                _draw_glow(cr, w, h, r, g, b, self._intensity)
+        _draw_overlay(cr, w, h, self._warning_mode, self._color, self._intensity)
 
 
 # ---------- Layer Shell overlay (Sway/Hyprland) ----------
@@ -253,10 +253,9 @@ class _LayerShellOverlay(Gtk.Window):
         logger.info("Layer Shell overlay: %s (%dx%d)", monitor.get_connector(), geo.width, geo.height)
 
     def _on_realize(self, w):
-        import cairo as _c
         s = self.get_surface()
         if s:
-            s.set_input_region(_c.Region())
+            s.set_input_region(cairo.Region())
 
     def set_intensity(self, v: float) -> None:
         self._intensity = max(0.0, min(1.0, v))
@@ -277,19 +276,7 @@ class _LayerShellOverlay(Gtk.Window):
             self._da.queue_draw()
 
     def _on_draw(self, area, cr, w, h):
-        import cairo
-        cr.set_operator(cairo.OPERATOR_SOURCE)
-        cr.set_source_rgba(0, 0, 0, 0)
-        cr.paint()
-        cr.set_operator(cairo.OPERATOR_OVER)
-        if self._intensity > 0:
-            r, g, b = self._color
-            if self._warning_mode == WarningMode.BORDER:
-                _draw_border(cr, w, h, r, g, b, self._intensity)
-            elif self._warning_mode == WarningMode.SOLID:
-                _draw_solid(cr, w, h, r, g, b, self._intensity)
-            else:
-                _draw_glow(cr, w, h, r, g, b, self._intensity)
+        _draw_overlay(cr, w, h, self._warning_mode, self._color, self._intensity)
 
 
 # ---------- GNOME Shell extension overlay via D-Bus ----------

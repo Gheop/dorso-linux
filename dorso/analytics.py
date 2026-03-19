@@ -71,7 +71,6 @@ class Analytics:
         self._days: dict[str, DayStats] = {}
         self._monitoring_start: float | None = None
         self._slouch_start: float | None = None
-        self._today_key: str = ""
         self.load()
 
     def load(self) -> None:
@@ -101,8 +100,6 @@ class Analytics:
 
     def _today(self) -> DayStats:
         key = date.today().isoformat()
-        if key != self._today_key:
-            self._today_key = key
         if key not in self._days:
             self._days[key] = DayStats(date=key)
         return self._days[key]
