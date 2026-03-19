@@ -59,19 +59,6 @@ jobs:
             msgfmt --check "$po" -o /dev/null
           done
 
-  flatpak:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-47
-      options: --privileged
-    steps:
-      - uses: actions/checkout@v5
-      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-        with:
-          manifest-path: flatpak/io.github.gheop.dorso.yml
-          bundle: dorso.flatpak
-          cache-key: flatpak-builder-${{ github.sha }}
-
   extension:
     runs-on: ubuntu-latest
     steps:
