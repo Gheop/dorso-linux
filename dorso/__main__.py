@@ -6,11 +6,18 @@ import sys
 
 
 def main() -> None:
+    # Suppress noisy third-party warnings (MediaPipe/TFLite/absl/Mesa)
+    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+    os.environ.setdefault("GLOG_minloglevel", "2")
+    os.environ.setdefault("MESA_LOG_LEVEL", "error")
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
+    logging.getLogger("mediapipe").setLevel(logging.ERROR)
+    logging.getLogger("absl").setLevel(logging.ERROR)
 
     # Hint about LD_PRELOAD for Wayland Layer Shell
     if "WAYLAND_DISPLAY" in os.environ and "libgtk4-layer-shell" not in os.environ.get("LD_PRELOAD", ""):
