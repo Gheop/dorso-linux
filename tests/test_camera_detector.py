@@ -219,3 +219,111 @@ class TestRegressions:
         detector._smoothing_window.extend([0.40, 0.41, 0.42])
         detector.calibration = None
         assert len(detector._smoothing_window) == 0
+
+
+class TestOnFrame:
+    def test_dispatches_reading_to_callback(self, detector, mock_hub):
+        """_on_frame should call on_reading with the processed reading."""
+        mock_landmarker = MagicMock()
+        detector._landmarker = mock_landmarker
+        detector._running = True
+        callback = MagicMock()
+        detector.on_reading = callback
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch.object(type(detector), "_extract_landmarks", return_value=(0.4, 0.1)):
+            detector._on_frame(frame)
+
+        callback.assert_called_once()
+        reading = callback.call_args[0][0]
+        assert reading.face_detected
+
+    def test_skips_when_not_running(self, detector):
+        """_on_frame should do nothing when detector is stopped."""
+        detector._running = False
+        detector._landmarker = MagicMock()
+        callback = MagicMock()
+        detector.on_reading = callback
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        detector._on_frame(frame)
+
+        callback.assert_not_called()
+
+    def test_skips_when_no_landmarker(self, detector):
+        """_on_frame should do nothing when landmarker is None."""
+        detector._running = True
+        detector._landmarker = None
+        callback = MagicMock()
+        detector.on_reading = callback
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        detector._on_frame(frame)
+
+        callback.assert_not_called()
+
+
+class TestCalibrateWorker:
+    def test_successful_calibration(self, detector, mock_hub):
+        """_calibrate_worker should produce CalibrationData from frames."""
+        import queue as queue_mod
+
+        mock_landmarker = MagicMock()
+        on_complete = MagicMock()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        # Create a real queue pre-filled with enough frames
+        fake_queue = queue_mod.Queue()
+        for _ in range(35):
+            fake_queue.put(frame)
+
+        with patch.object(type(detector), "_create_landmarker", return_value=mock_landmarker):
+            with patch.object(
+                type(detector), "_extract_landmarks",
+                return_value=(0.45, 0.12),
+            ):
+                with patch("dorso.camera_detector.queue.Queue", return_value=fake_queue):
+                    detector._calibrate_worker(on_complete)
+
+        on_complete.assert_called_once()
+        data = on_complete.call_args[0][0]
+        assert data is not None
+        assert abs(data.nose_y - 0.45) < 0.01
+        assert abs(data.face_width - 0.12) < 0.01
+        mock_landmarker.close.assert_called_once()
+        mock_hub.unsubscribe.assert_called_with("calibration")
+
+    def test_calibration_failure_not_enough_samples(self, detector, mock_hub):
+        """Calibration with too few valid frames should call on_complete(None)."""
+        import queue as queue_mod
+
+        mock_landmarker = MagicMock()
+        on_complete = MagicMock()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        # Pre-fill with frames, but landmarks will return None (no face)
+        fake_queue = queue_mod.Queue()
+        for _ in range(90):
+            fake_queue.put(frame)
+
+        with patch.object(type(detector), "_create_landmarker", return_value=mock_landmarker):
+            with patch.object(
+                type(detector), "_extract_landmarks",
+                return_value=(None, None),
+            ):
+                with patch("dorso.camera_detector.queue.Queue", return_value=fake_queue):
+                    detector._calibrate_worker(on_complete)
+
+        on_complete.assert_called_once_with(None)
+
+    def test_calibration_landmarker_creation_failure(self, detector, mock_hub):
+        """If landmarker creation fails, on_complete(None) should be called."""
+        on_complete = MagicMock()
+
+        with patch.object(
+            type(detector), "_create_landmarker",
+            side_effect=RuntimeError("model not found"),
+        ):
+            detector._calibrate_worker(on_complete)
+
+        on_complete.assert_called_once_with(None)

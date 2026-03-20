@@ -148,6 +148,71 @@ class TestGnomeShellOverlayNoProxy:
         assert overlay._color == (0.1, 0.2, 0.3)
 
 
+class TestDrawingPrimitives:
+    """Test the pure drawing functions with a mock Cairo context."""
+
+    def test_draw_glow(self):
+        from dorso.overlay import _draw_glow
+        cr = MagicMock()
+        _draw_glow(cr, 1920, 1080, 0.9, 0.2, 0.1, 0.5)
+        cr.set_source.assert_called_once()
+        cr.rectangle.assert_called_once_with(0, 0, 1920, 1080)
+        cr.fill.assert_called_once()
+
+    def test_draw_border(self):
+        from dorso.overlay import _draw_border
+        cr = MagicMock()
+        _draw_border(cr, 1920, 1080, 0.9, 0.2, 0.1, 0.5)
+        # 4 sides = 4 fills
+        assert cr.fill.call_count == 4
+        assert cr.rectangle.call_count == 4
+
+    def test_draw_border_zero_intensity_skips(self):
+        from dorso.overlay import _draw_border
+        cr = MagicMock()
+        _draw_border(cr, 1920, 1080, 0.9, 0.2, 0.1, 0.0)
+        # border < 1 → return early
+        cr.fill.assert_not_called()
+
+    def test_draw_solid(self):
+        from dorso.overlay import _draw_solid
+        cr = MagicMock()
+        _draw_solid(cr, 1920, 1080, 0.9, 0.2, 0.1, 0.5)
+        cr.set_source_rgba.assert_called_once_with(0.9, 0.2, 0.1, 0.2)
+        cr.rectangle.assert_called_once_with(0, 0, 1920, 1080)
+        cr.fill.assert_called_once()
+
+    @patch("dorso.overlay.cairo")
+    def test_draw_overlay_dispatches_glow(self, mock_cairo):
+        from dorso.overlay import _draw_overlay
+        cr = MagicMock()
+        _draw_overlay(cr, 800, 600, WarningMode.GLOW, (0.9, 0.2, 0.1), 0.5)
+        # Should have called set_source (from _draw_glow)
+        cr.set_source.assert_called()
+
+    @patch("dorso.overlay.cairo")
+    def test_draw_overlay_zero_intensity_clears_only(self, mock_cairo):
+        from dorso.overlay import _draw_overlay
+        cr = MagicMock()
+        _draw_overlay(cr, 800, 600, WarningMode.GLOW, (0.9, 0.2, 0.1), 0.0)
+        cr.paint.assert_called_once()
+        # No drawing calls after paint
+        cr.set_source.assert_not_called()
+        cr.fill.assert_not_called()
+
+
+class TestIsWayland:
+    def test_wayland_detected(self, monkeypatch):
+        from dorso.overlay import _is_wayland
+        monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+        assert _is_wayland() is True
+
+    def test_no_wayland(self, monkeypatch):
+        from dorso.overlay import _is_wayland
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+        assert _is_wayland() is False
+
+
 class TestOverlayManagerFallback:
     """OverlayManager falls back when extension is unavailable."""
 
