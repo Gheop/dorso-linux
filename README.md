@@ -7,9 +7,7 @@ Uses your webcam to detect slouching in real-time and overlays a progressive red
 ## How it looks
 
 <p align="center">
-  <video src="https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/video.mp4" width="600" autoplay loop muted playsinline>
-    Your browser does not support the video tag.
-  </video>
+  <img src="https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/demo.gif" width="600" alt="Dorso demo — slouch detection with screen overlay">
 </p>
 
 ## Screenshots
