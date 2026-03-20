@@ -35,6 +35,7 @@ jobs:
       - uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
+          use_oidc: true
           fail_ci_if_error: false
 
   test-gtk:
