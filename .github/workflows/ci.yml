@@ -33,7 +33,7 @@ jobs:
       - uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
-          fail_ci_if_not_uploaded: false
+          fail_ci_if_error: false
 
   test-gtk:
     runs-on: ubuntu-latest
