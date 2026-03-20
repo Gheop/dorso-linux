@@ -327,3 +327,150 @@ class TestCalibrateWorker:
             detector._calibrate_worker(on_complete)
 
         on_complete.assert_called_once_with(None)
+
+
+class TestExtractLandmarks:
+    """Test _extract_landmarks with mocked mediapipe."""
+
+    def _make_landmark(self, x, y, visibility=1.0):
+        lm = MagicMock()
+        lm.x = x
+        lm.y = y
+        lm.visibility = visibility
+        return lm
+
+    @patch("dorso.camera_detector.cv2")
+    def test_no_pose_returns_none(self, mock_cv2, detector):
+        """No pose landmarks → (None, None)."""
+        mock_cv2.cvtColor.return_value = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        mock_mp = MagicMock()
+        landmarker = MagicMock()
+        result = MagicMock()
+        result.pose_landmarks = []
+        landmarker.detect.return_value = result
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        with patch.dict("sys.modules", {"mediapipe": mock_mp}):
+            nose_y, face_w = detector._extract_landmarks(landmarker, frame)
+
+        assert nose_y is None
+        assert face_w is None
+
+    @patch("dorso.camera_detector.cv2")
+    def test_low_visibility_nose_returns_none(self, mock_cv2, detector):
+        """Nose with low visibility → (None, None)."""
+        mock_cv2.cvtColor.return_value = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        mock_mp = MagicMock()
+        landmarks = [self._make_landmark(0.5, 0.5, 1.0) for _ in range(33)]
+        landmarks[0] = self._make_landmark(0.5, 0.5, 0.3)  # nose low vis
+
+        landmarker = MagicMock()
+        result = MagicMock()
+        result.pose_landmarks = [landmarks]
+        landmarker.detect.return_value = result
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch.dict("sys.modules", {"mediapipe": mock_mp}):
+            nose_y, face_w = detector._extract_landmarks(landmarker, frame)
+
+        assert nose_y is None
+        assert face_w is None
+
+    @patch("dorso.camera_detector.cv2")
+    def test_ear_based_face_width(self, mock_cv2, detector):
+        """With visible ears, face_width = |left_ear.x - right_ear.x|."""
+        mock_cv2.cvtColor.return_value = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        mock_mp = MagicMock()
+        landmarks = [self._make_landmark(0.5, 0.5, 1.0) for _ in range(33)]
+        landmarks[0] = self._make_landmark(0.5, 0.4, 0.9)  # nose
+        landmarks[7] = self._make_landmark(0.3, 0.4, 0.8)  # left ear
+        landmarks[8] = self._make_landmark(0.7, 0.4, 0.8)  # right ear
+
+        landmarker = MagicMock()
+        result = MagicMock()
+        result.pose_landmarks = [landmarks]
+        landmarker.detect.return_value = result
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch.dict("sys.modules", {"mediapipe": mock_mp}):
+            nose_y, face_w = detector._extract_landmarks(landmarker, frame)
+
+        assert nose_y == pytest.approx(0.4)
+        assert face_w == pytest.approx(0.4)  # |0.3 - 0.7|
+
+    @patch("dorso.camera_detector.cv2")
+    def test_shoulder_fallback_face_width(self, mock_cv2, detector):
+        """With invisible ears but visible shoulders, face_width = shoulder_width * 0.4."""
+        mock_cv2.cvtColor.return_value = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        mock_mp = MagicMock()
+        landmarks = [self._make_landmark(0.5, 0.5, 1.0) for _ in range(33)]
+        landmarks[0] = self._make_landmark(0.5, 0.4, 0.9)  # nose
+        landmarks[7] = self._make_landmark(0.3, 0.4, 0.1)  # left ear (invisible)
+        landmarks[8] = self._make_landmark(0.7, 0.4, 0.1)  # right ear (invisible)
+        landmarks[11] = self._make_landmark(0.2, 0.6, 0.9)  # left shoulder
+        landmarks[12] = self._make_landmark(0.8, 0.6, 0.9)  # right shoulder
+
+        landmarker = MagicMock()
+        result = MagicMock()
+        result.pose_landmarks = [landmarks]
+        landmarker.detect.return_value = result
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch.dict("sys.modules", {"mediapipe": mock_mp}):
+            nose_y, face_w = detector._extract_landmarks(landmarker, frame)
+
+        assert nose_y == pytest.approx(0.4)
+        assert face_w == pytest.approx(0.6 * 0.4)  # |0.2 - 0.8| * 0.4
+
+    @patch("dorso.camera_detector.cv2")
+    def test_no_ears_no_shoulders_face_width_none(self, mock_cv2, detector):
+        """With invisible ears and shoulders, face_width = None."""
+        mock_cv2.cvtColor.return_value = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        mock_mp = MagicMock()
+        landmarks = [self._make_landmark(0.5, 0.5, 0.1) for _ in range(33)]
+        landmarks[0] = self._make_landmark(0.5, 0.4, 0.9)  # nose visible
+
+        landmarker = MagicMock()
+        result = MagicMock()
+        result.pose_landmarks = [landmarks]
+        landmarker.detect.return_value = result
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch.dict("sys.modules", {"mediapipe": mock_mp}):
+            nose_y, face_w = detector._extract_landmarks(landmarker, frame)
+
+        assert nose_y == pytest.approx(0.4)
+        assert face_w is None
+
+
+class TestEnsureLandmarker:
+    def test_creates_when_none(self, detector):
+        """_ensure_landmarker should create one when _landmarker is None."""
+        mock_lm = MagicMock()
+        with patch.object(type(detector), "_create_landmarker", return_value=mock_lm):
+            detector._ensure_landmarker()
+        assert detector._landmarker is mock_lm
+
+    def test_noop_when_exists(self, detector):
+        """_ensure_landmarker should not recreate if already exists."""
+        existing = MagicMock()
+        detector._landmarker = existing
+        with patch.object(type(detector), "_create_landmarker") as mock_create:
+            detector._ensure_landmarker()
+        mock_create.assert_not_called()
+        assert detector._landmarker is existing
+
+    def test_handles_creation_failure(self, detector):
+        """_ensure_landmarker should handle exceptions gracefully."""
+        with patch.object(
+            type(detector), "_create_landmarker",
+            side_effect=RuntimeError("no model"),
+        ):
+            detector._ensure_landmarker()  # should not raise
+        assert detector._landmarker is None

@@ -6,7 +6,13 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from dorso.tray import SNI_INTERFACE, SNI_PATH, TrayIcon, _generate_fallback_icons
+from dorso.tray import (
+    SNI_INTERFACE,
+    SNI_PATH,
+    TrayIcon,
+    _generate_fallback_icons,
+    _icon_dir,
+)
 
 
 @pytest.fixture
@@ -164,3 +170,62 @@ class TestStop:
             on_quit=MagicMock(),
         )
         icon.stop()  # Should not raise
+
+
+class TestIconDir:
+    def test_returns_path(self):
+        """_icon_dir should return a Path."""
+        result = _icon_dir()
+        assert result.is_dir()
+
+
+class TestBuildLayout:
+    def test_returns_tuple_with_children(self, tray):
+        """_build_layout should return a menu structure tuple."""
+        layout = tray._build_layout()
+        root_id, props, children = layout
+        assert root_id == 0
+        assert "children-display" in props
+        # 9 items: status, sep, toggle, recalibrate, sep, analytics, settings, sep, quit
+        assert len(children) == 9
+
+
+class TestOnMenuMethod:
+    def test_get_layout(self, tray):
+        inv = MagicMock()
+        params = MagicMock()
+        tray._on_menu_method(None, None, None, None, "GetLayout", params, inv)
+        inv.return_value.assert_called_once()
+
+    def test_get_group_properties(self, tray):
+        inv = MagicMock()
+        params = MagicMock()
+        tray._on_menu_method(None, None, None, None, "GetGroupProperties", params, inv)
+        inv.return_value.assert_called_once()
+
+    def test_event_clicked(self, tray):
+        inv = MagicMock()
+        params = MagicMock()
+        params.unpack.return_value = (1, "clicked", None, 0)
+        tray._on_menu_method(None, None, None, None, "Event", params, inv)
+        tray._on_toggle.assert_called_once()
+        inv.return_value.assert_called_once_with(None)
+
+    def test_about_to_show(self, tray):
+        inv = MagicMock()
+        params = MagicMock()
+        tray._on_menu_method(None, None, None, None, "AboutToShow", params, inv)
+        inv.return_value.assert_called_once()
+
+    def test_unknown_method(self, tray):
+        inv = MagicMock()
+        params = MagicMock()
+        tray._on_menu_method(None, None, None, None, "FakeMethod", params, inv)
+        inv.return_dbus_error.assert_called_once()
+
+
+class TestOnSniMethod:
+    def test_returns_none(self, tray):
+        inv = MagicMock()
+        tray._on_sni_method(None, None, None, None, "Activate", None, inv)
+        inv.return_value.assert_called_once_with(None)

@@ -229,3 +229,138 @@ class TestOverlayManagerFallback:
 
         assert not mgr.available
         assert len(mgr._overlays) == 0
+
+
+class TestOverlayManagerMethods:
+    """Test OverlayManager delegation methods."""
+
+    def test_set_intensity_delegates(self):
+        from dorso.overlay import OverlayManager
+        mgr = OverlayManager()
+        mock_overlay = MagicMock()
+        mgr._overlays = [mock_overlay]
+
+        mgr.set_intensity(0.7)
+        mock_overlay.set_intensity.assert_called_once_with(0.7)
+
+    def test_set_warning_mode_delegates(self):
+        from dorso.overlay import OverlayManager
+        mgr = OverlayManager()
+        mock_overlay = MagicMock()
+        mgr._overlays = [mock_overlay]
+
+        mgr.set_warning_mode(WarningMode.BORDER)
+        mock_overlay.set_warning_mode.assert_called_once_with(WarningMode.BORDER)
+        assert mgr._warning_mode == WarningMode.BORDER
+
+    def test_set_color_delegates(self):
+        from dorso.overlay import OverlayManager
+        mgr = OverlayManager()
+        mock_overlay = MagicMock()
+        mgr._overlays = [mock_overlay]
+
+        mgr.set_color((0.1, 0.2, 0.3))
+        mock_overlay.set_color.assert_called_once_with((0.1, 0.2, 0.3))
+
+    def test_clear_sets_zero_intensity(self):
+        from dorso.overlay import OverlayManager
+        mgr = OverlayManager()
+        mock_overlay = MagicMock()
+        mgr._overlays = [mock_overlay]
+
+        mgr.clear()
+        mock_overlay.set_intensity.assert_called_once_with(0.0)
+
+    def test_destroy_clears_list(self):
+        from dorso.overlay import OverlayManager
+        mgr = OverlayManager()
+        mock_overlay = MagicMock()
+        mgr._overlays = [mock_overlay]
+
+        mgr.destroy()
+        mock_overlay.destroy.assert_called_once()
+        assert mgr._overlays == []
+
+    def test_available_property(self):
+        from dorso.overlay import OverlayManager
+        mgr = OverlayManager()
+        assert mgr.available is False
+        mgr._available = True
+        assert mgr.available is True
+
+
+class TestGnomeShellOverlayConnect:
+    """Test connect and _send methods."""
+
+    @patch("dorso.overlay.GLib")
+    @patch("dorso.overlay.Gio")
+    def test_connect_creates_proxy(self, mock_gio, mock_glib):
+        from dorso.overlay import _GnomeShellOverlay
+        overlay = _GnomeShellOverlay()
+        overlay.connect()
+        mock_gio.DBusProxy.new_sync.assert_called_once()
+        assert overlay._proxy is not None
+
+    @patch("dorso.overlay.GLib")
+    @patch("dorso.overlay.Gio")
+    def test_set_warning_mode_sends_when_active(self, mock_gio, mock_glib):
+        from dorso.overlay import _GnomeShellOverlay
+        overlay = _GnomeShellOverlay()
+        overlay._proxy = MagicMock()
+        overlay._intensity = 0.5  # active
+
+        overlay.set_warning_mode(WarningMode.BORDER)
+        assert overlay._warning_mode == WarningMode.BORDER
+        overlay._proxy.call_sync.assert_called_once()
+
+    @patch("dorso.overlay.GLib")
+    @patch("dorso.overlay.Gio")
+    def test_set_color_sends_when_active(self, mock_gio, mock_glib):
+        from dorso.overlay import _GnomeShellOverlay
+        overlay = _GnomeShellOverlay()
+        overlay._proxy = MagicMock()
+        overlay._intensity = 0.5
+
+        overlay.set_color((0.5, 0.6, 0.7))
+        assert overlay._color == (0.5, 0.6, 0.7)
+        overlay._proxy.call_sync.assert_called_once()
+
+    @patch("dorso.overlay.GLib")
+    @patch("dorso.overlay.Gio")
+    def test_set_color_no_send_when_inactive(self, mock_gio, mock_glib):
+        from dorso.overlay import _GnomeShellOverlay
+        overlay = _GnomeShellOverlay()
+        overlay._proxy = MagicMock()
+        overlay._intensity = 0.0
+
+        overlay.set_color((0.5, 0.6, 0.7))
+        overlay._proxy.call_sync.assert_not_called()
+
+    @patch("dorso.overlay.GLib")
+    @patch("dorso.overlay.Gio")
+    def test_send_exception_caught(self, mock_gio, mock_glib):
+        from dorso.overlay import _GnomeShellOverlay
+        overlay = _GnomeShellOverlay()
+        overlay._proxy = MagicMock()
+        overlay._proxy.call_sync.side_effect = Exception("dbus error")
+
+        overlay.set_intensity(0.5)  # should not raise
+
+
+class TestDrawOverlayDispatches:
+    """Test _draw_overlay dispatches to correct draw function."""
+
+    @patch("dorso.overlay.cairo")
+    def test_dispatches_border(self, mock_cairo):
+        from dorso.overlay import _draw_overlay
+        cr = MagicMock()
+        _draw_overlay(cr, 800, 600, WarningMode.BORDER, (0.9, 0.2, 0.1), 0.5)
+        # Border draws 4 rectangles
+        assert cr.fill.call_count == 4
+
+    @patch("dorso.overlay.cairo")
+    def test_dispatches_solid(self, mock_cairo):
+        from dorso.overlay import _draw_overlay
+        cr = MagicMock()
+        _draw_overlay(cr, 800, 600, WarningMode.SOLID, (0.9, 0.2, 0.1), 0.5)
+        cr.set_source_rgba.assert_called()

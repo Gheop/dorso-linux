@@ -1,11 +1,12 @@
-"""Headless GTK tests for CalibrationDialog.
+"""Tests for CalibrationDialog.
 
-Requires a display (real or virtual via xvfb-run).
-Skipped automatically if no display is available.
+GTK tests require a display (real or virtual via xvfb-run).
+Non-GTK tests run everywhere.
 """
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -110,3 +111,116 @@ class TestCancel:
             dialog._on_cancel(MagicMock())
 
         on_complete.assert_called_once_with(None)
+
+
+# -- Non-GTK tests (run without display) --
+
+
+class TestStartStopPreview:
+    """Test preview subscription logic without requiring GTK display."""
+
+    @pytest.mark.skipif(not _HAS_DISPLAY, reason="No display")
+    def test_start_preview_subscribes(self):
+        from dorso.calibration import CalibrationDialog
+
+        hub = MagicMock()
+
+        with patch.object(CalibrationDialog, "_ensure_landmarker"):
+            with patch.object(CalibrationDialog, "__init__", lambda self, *a, **kw: None):
+                dialog = CalibrationDialog.__new__(CalibrationDialog)
+                dialog._hub = hub
+                dialog._preview_subscribed = False
+                dialog._landmarker = None
+                dialog._landmarker_lock = __import__("threading").Lock()
+                dialog._start_preview()
+
+        assert dialog._preview_subscribed is True
+        hub.subscribe.assert_called_once()
+
+    @pytest.mark.skipif(not _HAS_DISPLAY, reason="No display")
+    def test_stop_preview_unsubscribes_and_closes_landmarker(self):
+        from dorso.calibration import CalibrationDialog
+
+        hub = MagicMock()
+        mock_landmarker = MagicMock()
+
+        with patch.object(CalibrationDialog, "__init__", lambda self, *a, **kw: None):
+            dialog = CalibrationDialog.__new__(CalibrationDialog)
+            dialog._hub = hub
+            dialog._preview_subscribed = True
+            dialog._landmarker = mock_landmarker
+            dialog._landmarker_lock = __import__("threading").Lock()
+            dialog._stop_preview()
+
+        hub.unsubscribe.assert_called_once_with("cal_preview")
+        assert dialog._preview_subscribed is False
+        mock_landmarker.close.assert_called_once()
+        assert dialog._landmarker is None
+
+    @pytest.mark.skipif(not _HAS_DISPLAY, reason="No display")
+    def test_stop_preview_noop_when_not_subscribed(self):
+        from dorso.calibration import CalibrationDialog
+
+        hub = MagicMock()
+
+        with patch.object(CalibrationDialog, "__init__", lambda self, *a, **kw: None):
+            dialog = CalibrationDialog.__new__(CalibrationDialog)
+            dialog._hub = hub
+            dialog._preview_subscribed = False
+            dialog._landmarker = None
+            dialog._landmarker_lock = __import__("threading").Lock()
+            dialog._stop_preview()
+
+        hub.unsubscribe.assert_not_called()
+
+
+class TestOnPreviewFrame:
+    @pytest.mark.skipif(not _HAS_DISPLAY, reason="No display")
+    def test_processes_frame(self):
+        from dorso.calibration import CalibrationDialog
+
+        with patch.object(CalibrationDialog, "__init__", lambda self, *a, **kw: None):
+            dialog = CalibrationDialog.__new__(CalibrationDialog)
+            dialog._landmarker = MagicMock()
+            dialog._landmarker_lock = __import__("threading").Lock()
+
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        with patch("dorso.calibration.cv2") as mock_cv2, \
+             patch("dorso.calibration.detect_and_draw", return_value=frame) as mock_draw, \
+             patch("dorso.calibration.GLib") as mock_glib:
+            mock_cv2.flip.return_value = frame
+            mock_cv2.cvtColor.return_value = frame
+            dialog._on_preview_frame(frame)
+
+        mock_cv2.flip.assert_called_once()
+        mock_draw.assert_called_once()
+        mock_glib.idle_add.assert_called_once()
+
+
+class TestEnsureLandmarker:
+    @pytest.mark.skipif(not _HAS_DISPLAY, reason="No display")
+    def test_already_exists_noop(self):
+        from dorso.calibration import CalibrationDialog
+
+        with patch.object(CalibrationDialog, "__init__", lambda self, *a, **kw: None):
+            dialog = CalibrationDialog.__new__(CalibrationDialog)
+            dialog._landmarker = MagicMock()  # already set
+
+        with patch("dorso.calibration._model_path") as mock_path:
+            dialog._ensure_landmarker()
+
+        mock_path.assert_not_called()  # should have returned early
+
+    @pytest.mark.skipif(not _HAS_DISPLAY, reason="No display")
+    def test_creation_failure_sets_none(self):
+        from dorso.calibration import CalibrationDialog
+
+        with patch.object(CalibrationDialog, "__init__", lambda self, *a, **kw: None):
+            dialog = CalibrationDialog.__new__(CalibrationDialog)
+            dialog._landmarker = None
+
+        with patch("dorso.calibration._model_path", side_effect=Exception("no model")):
+            dialog._ensure_landmarker()
+
+        assert dialog._landmarker is None

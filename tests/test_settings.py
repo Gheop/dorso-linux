@@ -95,3 +95,12 @@ def test_load_missing_keys_uses_defaults(tmp_path, monkeypatch):
     assert s.warning_onset_delay == 0.0
     assert s.camera_id == 0
     assert s.calibration is None
+
+
+def test_detection_mode_intervals():
+    """DetectionMode should expose correct base and slouch intervals."""
+    assert DetectionMode.RESPONSIVE.base_interval == 0.1
+    assert DetectionMode.BALANCED.base_interval == 0.25
+    assert DetectionMode.PERFORMANCE.base_interval == 0.5
+    for mode in DetectionMode:
+        assert mode.slouch_interval == 0.1
