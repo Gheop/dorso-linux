@@ -29,7 +29,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgirepository-2.0-dev gir1.2-gtk-4.0 gettext libcairo2-dev python3-dev pkg-config libdbus-1-dev
       - run: pip install -e ".[dev]"
-      - run: pytest tests/ -v --tb=short -k "not test_onboarding and not test_settings_window"
+      - run: pytest tests/ -v --tb=short --cov=dorso --cov-report=xml -k "not test_onboarding and not test_settings_window"
+      - uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_not_uploaded: false
 
   test-gtk:
     runs-on: ubuntu-latest

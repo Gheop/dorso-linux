@@ -64,3 +64,34 @@ def test_posture_config_from_settings():
     assert config.intensity == 2.0
     assert config.slouch_sensitivity == 0.05
     assert config.warning_onset_delay == 1.0
+
+
+def test_load_invalid_enum_values(tmp_path, monkeypatch):
+    """Invalid enum values in TOML should fall back to defaults."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    config_dir = tmp_path / "dorso"
+    config_dir.mkdir()
+    (config_dir / "config.toml").write_text(
+        'warning_mode = "invalid"\ndetection_mode = "bogus"\n'
+    )
+
+    s = Settings.load()
+    assert s.warning_mode == WarningMode.GLOW
+    assert s.detection_mode == DetectionMode.RESPONSIVE
+
+
+def test_load_missing_keys_uses_defaults(tmp_path, monkeypatch):
+    """TOML with only some keys should fill the rest with defaults."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    config_dir = tmp_path / "dorso"
+    config_dir.mkdir()
+    (config_dir / "config.toml").write_text("intensity = 2.0\n")
+
+    s = Settings.load()
+    assert s.intensity == 2.0
+    assert s.warning_mode == WarningMode.GLOW
+    assert s.detection_mode == DetectionMode.RESPONSIVE
+    assert s.slouch_sensitivity == 0.03
+    assert s.warning_onset_delay == 0.0
+    assert s.camera_id == 0
+    assert s.calibration is None

@@ -70,5 +70,12 @@ line-length = 100
 # E402: gi.require_version() must come before gi.repository imports
 "dorso/*.py" = ["E402"]
 
+[tool.coverage.run]
+source = ["dorso"]
+omit = ["dorso/__main__.py"]
+
+[tool.coverage.report]
+exclude_lines = ["if __name__", "pragma: no cover"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

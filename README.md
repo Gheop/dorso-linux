@@ -1,5 +1,12 @@
 # dorso-linux
 
+[![CI](https://github.com/Gheop/dorso-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Gheop/dorso-linux/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Gheop/dorso-linux/graph/badge.svg)](https://codecov.io/gh/Gheop/dorso-linux)
+[![PyPI](https://img.shields.io/pypi/v/dorso-linux)](https://pypi.org/project/dorso-linux/)
+[![Python](https://img.shields.io/pypi/pyversions/dorso-linux)](https://pypi.org/project/dorso-linux/)
+[![License](https://img.shields.io/github/license/Gheop/dorso-linux)](LICENSE)
+[![GNOME Shell](https://img.shields.io/badge/GNOME_Shell-45%20%7C%2046%20%7C%2047%20%7C%2048%20%7C%2049-4A86CF?logo=gnome&logoColor=white)](https://github.com/Gheop/dorso-linux/tree/main/gnome-extension)
+
 Posture monitoring tool for Linux, inspired by [dorso](https://github.com/tldev/dorso) for macOS.
 
 Uses your webcam to detect slouching in real-time and overlays a progressive red glow on your screen as a gentle reminder to sit straight.

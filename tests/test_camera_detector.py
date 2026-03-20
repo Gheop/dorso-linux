@@ -191,3 +191,31 @@ class TestCalibrate:
             detector.calibrate(on_complete)
             mock_thread.assert_called_once()
             mock_thread.return_value.start.assert_called_once()
+
+
+class TestRegressions:
+    def test_smoothing_window_cleared_on_recalibration(self, detector):
+        """Regression: setting new calibration must clear the smoothing window."""
+        detector.calibration = CalibrationData(nose_y=0.40, face_width=0.10)
+        detector._smoothing_window.extend([0.41, 0.42, 0.43])
+        assert len(detector._smoothing_window) == 3
+
+        detector.calibration = CalibrationData(nose_y=0.45, face_width=0.11)
+        assert len(detector._smoothing_window) == 0
+
+    def test_landmarker_closed_on_stop(self, detector, mock_hub):
+        """Regression: stop() must close the landmarker and set it to None."""
+        mock_landmarker = MagicMock()
+        detector._landmarker = mock_landmarker
+        detector._running = True
+
+        detector.stop()
+
+        mock_landmarker.close.assert_called_once()
+        assert detector._landmarker is None
+
+    def test_calibration_setter_clears_smoothing_even_for_none(self, detector):
+        """Edge case: setting calibration=None must still clear the window."""
+        detector._smoothing_window.extend([0.40, 0.41, 0.42])
+        detector.calibration = None
+        assert len(detector._smoothing_window) == 0

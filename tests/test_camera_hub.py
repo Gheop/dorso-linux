@@ -187,6 +187,29 @@ class TestErrorHandling:
             hub.shutdown()
 
 
+class TestEdgeCases:
+    def test_subscribe_with_fps_zero(self, fake_capture):
+        """fps=0 should not cause division by zero — interval falls back to 1.0."""
+        hub = CameraHub("/dev/video0")
+
+        received = []
+        event = threading.Event()
+
+        def cb(frame):
+            received.append(1)
+            event.set()
+
+        hub.subscribe("test", cb, fps=0)
+
+        # Verify the subscriber interval is 1.0 (fallback), not infinity/error
+        sub = hub._subscribers["test"]
+        assert sub.interval == 1.0
+
+        event.wait(timeout=3.0)
+        hub.shutdown()
+        assert len(received) >= 1
+
+
 class TestFrameSharing:
     def test_subscribers_share_same_frame(self, fake_capture):
         """Subscribers receive the same frame object (zero-copy)."""
