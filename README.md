@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Gheop/dorso-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Gheop/dorso-linux/actions/workflows/ci.yml)
 [![tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Gheop/288bd95bf4e2365bb869bd34dd268359/raw/dorso-linux-badges.json)](https://github.com/Gheop/dorso-linux/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/Gheop/dorso-linux/graph/badge.svg)](https://codecov.io/gh/Gheop/dorso-linux)
+[![codecov](https://img.shields.io/codecov/c/github/Gheop/dorso-linux)](https://codecov.io/gh/Gheop/dorso-linux)
 [![PyPI](https://img.shields.io/pypi/v/dorso-linux)](https://pypi.org/project/dorso-linux/)
 [![Python](https://img.shields.io/pypi/pyversions/dorso-linux)](https://pypi.org/project/dorso-linux/)
 [![License](https://img.shields.io/github/license/Gheop/dorso-linux)](LICENSE)
