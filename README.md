@@ -4,6 +4,14 @@ Posture monitoring tool for Linux, inspired by [dorso](https://github.com/tldev/
 
 Uses your webcam to detect slouching in real-time and overlays a progressive red glow on your screen as a gentle reminder to sit straight.
 
+## How it looks
+
+<p align="center">
+  <video src="https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/video.mp4" width="600" autoplay loop muted playsinline>
+    Your browser does not support the video tag.
+  </video>
+</p>
+
 ## Screenshots
 
 <p align="center">

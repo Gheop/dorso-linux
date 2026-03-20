@@ -2,6 +2,8 @@
 
 Posture monitoring for Linux. Uses your webcam to detect slouching and overlays a progressive red glow on your screen as a reminder to sit straight.
 
+[See it in action](https://github.com/Gheop/dorso-linux#how-it-looks)
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/screenshot-calibration.png" width="260" alt="Calibration">
   <img src="https://raw.githubusercontent.com/Gheop/dorso-linux/main/assets/screenshot-settings.png" width="260" alt="Settings">
