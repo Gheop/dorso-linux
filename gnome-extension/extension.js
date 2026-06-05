@@ -6,7 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const DBUS_IFACE = `
 <node>
-  <interface name="org.dorso.Overlay">
+  <interface name="org.gnome.Shell.Extensions.DorsoOverlay">
     <method name="SetOverlay">
       <arg name="intensity" type="d" direction="in"/>
       <arg name="r" type="d" direction="in"/>
@@ -171,7 +171,7 @@ export default class DorsoOverlayExtension {
     enable() {
         const nodeInfo = Gio.DBusNodeInfo.new_for_xml(DBUS_IFACE);
         _dbusId = Gio.DBus.session.register_object(
-            '/org/dorso/Overlay',
+            '/org/gnome/Shell/Extensions/DorsoOverlay',
             nodeInfo.interfaces[0],
             _onDbusCall,
             null,
@@ -179,7 +179,7 @@ export default class DorsoOverlayExtension {
         );
         _nameId = Gio.bus_own_name_on_connection(
             Gio.DBus.session,
-            'org.dorso.Overlay',
+            'org.gnome.Shell.Extensions.DorsoOverlay',
             Gio.BusNameOwnerFlags.NONE,
             null,
             null

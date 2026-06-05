@@ -288,9 +288,9 @@ class _GnomeShellOverlay:
     monitors with true always-on-top and click-through.
     """
 
-    BUS_NAME = "org.dorso.Overlay"
-    OBJECT_PATH = "/org/dorso/Overlay"
-    IFACE_NAME = "org.dorso.Overlay"
+    BUS_NAME = "org.gnome.Shell.Extensions.DorsoOverlay"
+    OBJECT_PATH = "/org/gnome/Shell/Extensions/DorsoOverlay"
+    IFACE_NAME = "org.gnome.Shell.Extensions.DorsoOverlay"
 
     def __init__(self) -> None:
         self._proxy: Gio.DBusProxy | None = None

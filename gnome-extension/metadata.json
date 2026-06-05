@@ -3,5 +3,6 @@
   "name": "Dorso Overlay",
   "description": "Screen overlay for dorso-linux posture monitor",
   "shell-version": ["45", "46", "47", "48", "49"],
+  "url": "https://github.com/Gheop/dorso-linux",
   "version": 1
 }
