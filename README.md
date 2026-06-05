@@ -6,7 +6,7 @@
 [![PyPI](https://img.shields.io/pypi/v/dorso-linux)](https://pypi.org/project/dorso-linux/)
 [![Python](https://img.shields.io/pypi/pyversions/dorso-linux)](https://pypi.org/project/dorso-linux/)
 [![License](https://img.shields.io/github/license/Gheop/dorso-linux)](LICENSE)
-[![GNOME Shell](https://img.shields.io/badge/GNOME_Shell-45%20%7C%2046%20%7C%2047%20%7C%2048%20%7C%2049-4A86CF?logo=gnome&logoColor=white)](https://github.com/Gheop/dorso-linux/tree/main/gnome-extension)
+[![GNOME Shell](https://img.shields.io/badge/GNOME_Shell-45%20%7C%2046%20%7C%2047%20%7C%2048%20%7C%2049-4A86CF?logo=gnome&logoColor=white)](https://extensions.gnome.org/extension/9537/dorso-overlay/)
 
 Posture monitoring tool for Linux, inspired by [dorso](https://github.com/tldev/dorso) for macOS.
 
@@ -65,7 +65,11 @@ sudo apt install libgtk-4-dev python3-gi gir1.2-gtk-4.0
 pip install dorso-linux
 ```
 
-For the best experience on **GNOME Wayland**, also install the GNOME Shell extension (multi-monitor, always-on-top overlay):
+For the best experience on **GNOME Wayland**, also install the GNOME Shell extension (multi-monitor, always-on-top overlay) from the GNOME Extensions store:
+
+**[Dorso Overlay on extensions.gnome.org](https://extensions.gnome.org/extension/9537/dorso-overlay/)**
+
+Or install it from this repo:
 
 ```bash
 ./scripts/install-extension.sh
@@ -151,7 +155,7 @@ The CameraHub shares a single camera capture across all consumers (detector, set
 
 ### GNOME Shell extension (recommended for GNOME)
 
-For the best experience on GNOME Wayland, install the bundled extension:
+For the best experience on GNOME Wayland, install it from the [GNOME Extensions store](https://extensions.gnome.org/extension/9537/dorso-overlay/), or from this repo:
 
 ```bash
 ./scripts/install-extension.sh
