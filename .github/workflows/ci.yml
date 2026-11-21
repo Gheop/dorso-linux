@@ -10,8 +10,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - run: pip install ruff
@@ -22,8 +22,8 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install system dependencies
@@ -33,7 +33,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: Run all tests with coverage
         run: xvfb-run pytest tests/ -v --tb=short --cov=dorso --cov-report=xml --junitxml=test-results.xml
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
           use_oidc: true
@@ -46,7 +46,7 @@ jobs:
           echo "count=$count" >> "$GITHUB_OUTPUT"
       - name: Update test count badge
         if: github.ref == 'refs/heads/main'
-        uses: schneegans/dynamic-badges-action@v1.7.0
+        uses: schneegans/dynamic-badges-action@v1.9.0
         with:
           auth: ${{ secrets.GIST_TOKEN }}
           gistID: 288bd95bf4e2365bb869bd34dd268359
@@ -58,7 +58,7 @@ jobs:
   locales:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install gettext
         run: sudo apt-get update && sudo apt-get install -y gettext
       - name: Validate all .po files
@@ -71,7 +71,7 @@ jobs:
   extension:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Validate metadata.json
         run: |
           python3 -c "
